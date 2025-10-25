@@ -11,6 +11,14 @@ def main():
     coloredlogs.install()
     parser = argparse.ArgumentParser()
     parser.add_argument("-v","--verbose", action='store_true', dest='verbose', help="Debug.")
+    parser.add_argument("-i","--input", action='store', dest='input_dir', required=True,
+                        help="Directory containing music to convert.")
+    parser.add_argument("-e","--export", action='store', dest='export_dir', required=True,
+                        help="Directory where to export MP3.")
+    parser.add_argument("-#","--number", action='store', dest='number_dirs',
+                        type=int, default=2,\
+                        help="Number of sub directories to create in the export directory to \
+                            divide it equally.")
 
     args = parser.parse_args()
     logger.info('Arguments: %s',args)
@@ -20,7 +28,6 @@ def main():
         coloredlogs.set_level(level=logging.DEBUG)
 
     logger.debug('Arguments: %s',args)
-
 
 if __name__ == "__main__":
     main()
