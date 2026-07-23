@@ -39,8 +39,6 @@ def main():
     logger.debug('Arguments: %s',args)
 
     music = Path(args.input_dir)
-    print(music)
-    print(music.is_dir())
     if not music.is_dir():
         logger.error('Input path must be a directory')
         sys.exit(-1)
@@ -84,7 +82,7 @@ def main():
             audios[artist] = {}
         albums = audios[artist]
         if album not in albums:
-            albums[album] = {}
+            albums[album] = []
         titles = albums[album]
         titles.append({'inode': inode, 'title': title, 'track': track})
 
