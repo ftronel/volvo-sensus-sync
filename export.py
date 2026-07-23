@@ -87,7 +87,11 @@ def main():
         titles.append({'inode': inode, 'title': title, 'track': track})
 
     for artist in audios.keys():
-        print(artist)
+        albums = audios[artists]
+        for album in albums:
+            titles = albums[album]
+            for title in titles:
+                logger.info("%s %s %s", artist, album, title)
 
 
     
