@@ -80,7 +80,7 @@ def main():
         audios[inode] = { 'artist': artist, 'album': album, 'title': title, 'track': track}
 
     for f in audios:
-        print(files[f])
+        print(audio[f])
 
 
     
