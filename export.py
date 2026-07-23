@@ -37,6 +37,15 @@ def main():
 
     logger.debug('Arguments: %s',args)
 
+    music = Path(args.input_dir)
+    if not music.is_dir():
+        logger.error('Input path must be a directory')
+        sys.exit(-1)
+
+    export = Path(arg.export_dir)
+    if not export.is_dir():
+        logger.error('Export path must be a directory')
+        sys.exit(-1)
 
     directories = [ Path(args.input_dir) ]
     files = {}
@@ -61,9 +70,11 @@ def main():
             elif inode.is_dir():
                 directories.append(inode)
 
-
     for f in files:
-        print(f)
+        print(files[f])
+
+
+    
 
 if __name__ == "__main__":
     main()
