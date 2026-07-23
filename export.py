@@ -39,9 +39,9 @@ def main():
     for root in directories:
         for inode in root.rglob("*"):
             if inode.is_file():
-            mime = magic.from_file(inode, mime=True)
-            if mime.startswith("audio/"):
-                files.append(inode)
+                mime = magic.from_file(inode, mime=True)
+                if mime.startswith("audio/"):
+                    files.append(inode)
             elif inode.is_dir():
                 directories.append(inode)
 
