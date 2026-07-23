@@ -7,7 +7,7 @@ from pathlib import Path
 
 import coloredlogs
 from mutagen import File
-
+from tqdm import tqdm
 
 
 AUDIO_EXTENSIONS = { ".mp3", ".flac", ".wav", ".ogg", ".m4a", ".aac", ".wma", 
@@ -63,7 +63,7 @@ def main():
 
     logger.info('Retrieving audio metadata')
     audios = {}
-    for inode in files:
+    for inode in tqdm(files):
         try:
             audio = File(inode, easy=True)
         except MutagenError:
