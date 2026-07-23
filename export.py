@@ -6,7 +6,11 @@ import logging
 from pathlib import Path
 
 import coloredlogs
-import magic
+
+
+
+AUDIO_EXTENSIONS = { ".mp3", ".flac", ".wav", ".ogg", ".m4a", ".aac", ".wma", 
+                    ".opus", ".aiff", ".alac" }
 
 def main():
     """Main function of the program."""
@@ -38,10 +42,8 @@ def main():
 
     for root in directories:
         for inode in root.rglob("*"):
-            if inode.is_file():
-                mime = magic.from_file(inode, mime=True)
-                if mime.startswith("audio/"):
-                    files.append(inode)
+            if inode.is_file() and inode.suffix.lower() in AUDIO_EXTENSIONS:
+                files.append(inode)
             elif inode.is_dir():
                 directories.append(inode)
 
