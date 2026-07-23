@@ -6,6 +6,7 @@ import logging
 from pathlib import Path
 
 import coloredlogs
+from mutagen import File
 
 
 
@@ -38,12 +39,19 @@ def main():
 
 
     directories = [ Path(args.input_dir) ]
-    files = []
+    files = {}
 
     for root in directories:
         for inode in root.rglob("*"):
             if inode.is_file() and inode.suffix.lower() in AUDIO_EXTENSIONS:
-                files.append(inode)
+                audio = File(inode, easy=True)
+                if audio is None:
+                    continue
+
+                artist = audio.get("artist", ["Inconnu"])[0]
+                album = audio.get("album", ["Inconnu"])[0]
+                title = audio.get("title", [inode.stem])[0]
+                files[inode] = { 'artist': artist, 'album': album, 'title': title }
             elif inode.is_dir():
                 directories.append(inode)
 
