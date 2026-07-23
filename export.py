@@ -42,7 +42,7 @@ def main():
         logger.error('Input path must be a directory')
         sys.exit(-1)
 
-    export = Path(arg.export_dir)
+    export = Path(args.export_dir)
     if not export.is_dir():
         logger.error('Export path must be a directory')
         sys.exit(-1)
@@ -66,7 +66,8 @@ def main():
                 artist = audio.get("artist", ["Inconnu"])[0]
                 album = audio.get("album", ["Inconnu"])[0]
                 title = audio.get("title", [inode.stem])[0]
-                files[inode] = { 'artist': artist, 'album': album, 'title': title }
+                track = audio.get("tracknumber", [""])[0]
+                files[inode] = { 'artist': artist, 'album': album, 'title': title, 'track': track}
             elif inode.is_dir():
                 directories.append(inode)
 
