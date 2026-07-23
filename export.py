@@ -44,7 +44,7 @@ def main():
     for root in directories:
         for inode in root.rglob("*"):
             if inode.is_file() and inode.suffix.lower() in AUDIO_EXTENSIONS:
-                logger.debug("Parsing {inode}")
+                logger.debug("Parsing %s", inode)
                 try:
                     audio = File(inode, easy=True)
                 except MutagenError:
