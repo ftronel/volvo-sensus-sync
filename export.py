@@ -39,9 +39,12 @@ def main():
         for inode in root.rglob("*"):
             if inode.is_file():
                 files.append(inode)
-            elif inode_is_dir():
+            elif inode.is_dir():
                 directories.append(inode)
 
+
+    for f in files:
+        print(f)
 
 if __name__ == "__main__":
     main()
