@@ -48,30 +48,38 @@ def main():
         sys.exit(-1)
 
     directories = [ Path(args.input_dir) ]
-    files = {}
+    files = []
 
+    logger.info('Searching for potential audio files')
     for root in directories:
         for inode in root.rglob("*"):
             if inode.is_file() and inode.suffix.lower() in AUDIO_EXTENSIONS:
                 logger.debug("Parsing %s", inode)
-                try:
-                    audio = File(inode, easy=True)
-                except MutagenError:
-                    logger.warning(f"Impossible to read: {inode}")
-                    continue
-                if audio is None:
-                    logger.warning(f"{inode} is not an audio file")
-                    continue
-
-                artist = audio.get("artist", ["Inconnu"])[0]
-                album = audio.get("album", ["Inconnu"])[0]
-                title = audio.get("title", [inode.stem])[0]
-                track = audio.get("tracknumber", [""])[0]
-                files[inode] = { 'artist': artist, 'album': album, 'title': title, 'track': track}
+                files.append(inode)
             elif inode.is_dir():
                 directories.append(inode)
 
+    logger.info('Found %d files', len(files))
+
+    logger.info('Retrieving audio metadata')
+    audios = {}
     for f in files:
+        try:
+            audio = File(inode, easy=True)
+            except MutagenError:
+                logger.warning(f"Impossible to read: {inode}")
+                continue
+            if audio is None:
+                logger.warning(f"{inode} is not an audio file")
+                continue
+
+            artist = audio.get("artist", ["Inconnu"])[0]
+            album = audio.get("album", ["Inconnu"])[0]
+            title = audio.get("title", [inode.stem])[0]
+            track = audio.get("tracknumber", [""])[0]
+            audios[inode] = { 'artist': artist, 'album': album, 'title': title, 'track': track}
+
+    for f in audios:
         print(files[f])
 
 
