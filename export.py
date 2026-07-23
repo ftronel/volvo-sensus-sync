@@ -4,6 +4,7 @@
 import argparse
 import logging
 from pathlib import Path
+import sys
 
 import coloredlogs
 from mutagen import File
@@ -77,7 +78,13 @@ def main():
         album = audio.get("album", ["Inconnu"])[0]
         title = audio.get("title", [inode.stem])[0]
         track = audio.get("tracknumber", [""])[0]
-        audios[inode] = { 'artist': artist, 'album': album, 'title': title, 'track': track}
+        if artist not in audios:
+            audios[artist] = {}
+        albums = audios[artist]
+        if album not in albums:
+            albums[album] = {}
+        titles = albums[album]
+        titles.append({'inode': inode, 'title': title, 'track': track})
 
     for f in audios:
         print(audios[f])
