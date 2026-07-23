@@ -3,6 +3,8 @@
 
 import argparse
 import logging
+from pathlib import Path
+
 import coloredlogs
 
 def main():
@@ -28,6 +30,18 @@ def main():
         coloredlogs.set_level(level=logging.DEBUG)
 
     logger.debug('Arguments: %s',args)
+
+
+    directories = [ Path(args.input_dir) ]
+    files = []
+
+    for root in directories:
+        for inode in root.rglob("*"):
+            if inode.is_file():
+                files.append(inode)
+            elif inode_is_dir():
+                directories.append(inode)
+
 
 if __name__ == "__main__":
     main()
