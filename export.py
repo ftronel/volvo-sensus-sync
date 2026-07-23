@@ -63,7 +63,7 @@ def main():
 
     logger.info('Retrieving audio metadata')
     audios = {}
-    for f in files:
+    for inode in files:
         try:
             audio = File(inode, easy=True)
         except MutagenError:
