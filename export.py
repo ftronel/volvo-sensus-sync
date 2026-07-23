@@ -39,6 +39,8 @@ def main():
     logger.debug('Arguments: %s',args)
 
     music = Path(args.input_dir)
+    print(music)
+    print(music.is_dir())
     if not music.is_dir():
         logger.error('Input path must be a directory')
         sys.exit(-1)
