@@ -44,6 +44,7 @@ def main():
     for root in directories:
         for inode in root.rglob("*"):
             if inode.is_file() and inode.suffix.lower() in AUDIO_EXTENSIONS:
+                logger.debug("Parsing {inode}")
                 try:
                     audio = File(inode, easy=True)
                 except MutagenError:
@@ -53,7 +54,6 @@ def main():
                     logger.warning(f"{inode} is not an audio file")
                     continue
 
-                print(inode)
                 artist = audio.get("artist", ["Inconnu"])[0]
                 album = audio.get("album", ["Inconnu"])[0]
                 title = audio.get("title", [inode.stem])[0]
