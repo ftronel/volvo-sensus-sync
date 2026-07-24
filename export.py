@@ -88,7 +88,7 @@ def get_metadata(files: list[Path]) -> dict[str,dict[str,dict[int,list[dict]]]]:
     return res
 
 @typechecked
-def determine_conversions(audios: dict[str,dict[str,dict[int,list]]], export_dir: str) -> list:
+def determine_conversions(audios: dict[str,dict[str,dict[int,list[dict]]]], export_dir: str) -> list:
     logger = logging.getLogger(__name__)
     res = []
 
