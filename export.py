@@ -134,9 +134,9 @@ def main():
                         dest.mkdir()
                 tracks = discs[disc]
                 for track in tracks:
-                    Considering("Considering title: %s", track['title'])
-                    dest_path = f"{dest_path}/{track['title']}.mp3"
-                    dest = Path(dest_path)
+                    logger.debug("Considering title: %s", track['title'])
+                    final_path = f"{dest_path}/{track['title']}.mp3"
+                    dest = Path(final_path)
                     if dest.exists():
                         if dest.is_dir():
                             logger.error("There exist a directory whose name collides with target file: %s", dest_path)
