@@ -11,7 +11,8 @@ import shutil
 import subprocess
 
 import coloredlogs
-from mutagen import File, MutagenError, MP3
+from mutagen import File, MutagenError
+from mutagen.mp3 import MP3
 from tqdm import tqdm
 from typeguard import typechecked
 
