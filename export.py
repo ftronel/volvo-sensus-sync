@@ -101,9 +101,8 @@ def main():
     logger.info("Creating export directory structure ...")
     mp3s = []
     # TODO: replace "/" by "_" in artist, album, title
-    dest_path = args.export_dir
     for artist in audios.keys():
-        dest_path = f"{dest_path}/{artist}"
+        dest_path = f"{args.export_dir}/{artist}"
         dest = Path(dest_path)
         if dest.exists() and not dest.is_dir():
             logger.error("A file with %s name exists under export directory.", artist)
