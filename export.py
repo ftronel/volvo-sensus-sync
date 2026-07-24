@@ -41,7 +41,7 @@ def get_audio_list(root: str) -> list[Path]:
 
     return res
 
-def get_metadata(files: list[Path]) -> dict[str,dict[str,list[list[dict]]]]]:
+def get_metadata(files: list[Path]) -> dict[str,dict[str,list[list[dict]]]]:
     logger = logging.getLogger(__name__)
 
     res = {}
