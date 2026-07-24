@@ -6,6 +6,7 @@ import logging
 from pathlib import Path
 import sys
 import re
+import os
 
 import coloredlogs
 from mutagen import File
@@ -114,7 +115,7 @@ def main():
         albums = audios[artist]
         if album not in albums:
             albums[album] = {}
-            for d in range(1, nb_discs)
+            for d in range(1, nb_discs):
                 albums[album][d] = []
         discs = albums[album]
         tracks = discs[disc_id]
