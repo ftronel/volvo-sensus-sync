@@ -63,8 +63,6 @@ def main():
             if inode.is_file() and inode.suffix.lower() in AUDIO_EXTENSIONS:
                 logger.debug("Parsing %s", inode)
                 files.append(inode)
-            elif inode.is_dir():
-                directories.append(inode)
 
     logger.info('Found %d files', len(files))
 
