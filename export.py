@@ -113,12 +113,13 @@ def main():
         if artist not in audios:
             audios[artist] = {}
         albums = audios[artist]
-        logger.debug("Disc: %d / %d", disc_id, nb_discs)
         if album not in albums:
             albums[album] = {}
             for d in range(0, nb_discs):
                 albums[album][d+1] = []
         discs = albums[album]
+        if disc_in not in discs:
+            discs[disc_id] = []
         tracks = discs[disc_id]
         tracks.append({'inode': inode, 'title': title, 'disc': disc_id, 'nb_discs': nb_discs, 'track': track})
 
