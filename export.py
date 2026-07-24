@@ -95,8 +95,8 @@ def main():
         discs = albums[album]
         if (disc-1) not in discs:
             discs[disc-1] = []
-        titles = discs[disc-1]
-        titles.append({'inode': inode, 'title': title, 'disc': disc, 'track': track})
+        tracks = discs[disc-1]
+        tracks.append({'inode': inode, 'title': title, 'disc': disc, 'track': track})
 
     logger.info("Creating export directory structure ...")
     mp3s = []
@@ -121,23 +121,25 @@ def main():
                 dest.mkdir()
             discs = albums[album]
             nb_discs = len(discs.keys())
-            if nb_discs > 1:
-                dest_path = f"{dest_path}/Disc {disc}"
-                dest = Path(dest_path)
-                if dest.exists() and not dest.is_dir():
-                    logger.error("A file with %s disc exists under export directory.", album)
-                    continue
-                if not dest.exists():
-                    dest.mkdir()
-            for title in titles:
-                dest_path = f"{dest_path}/{title}.mp3"
-                dest = Path(dest_path)
-                if dest.exists():
-                    if dest.is_dir():
-                        logger.error("There exist a directory whose name collides with target file: %s", dest_path)
+            for disc in discs.keys():
+                if nb_discs > 1:
+                    dest_path = f"{dest_path}/Disc {disc}"
+                    dest = Path(dest_path)
+                    if dest.exists() and not dest.is_dir():
+                        logger.error("A file with %s disc exists under export directory.", album)
                         continue
-                else:
-                    mp3s.append(title)
+                    if not dest.exists():
+                        dest.mkdir()
+                tracks = discs[disc]
+                for track in tracks:
+                    dest_path = f"{dest_path}/{track['title']}.mp3"
+                    dest = Path(dest_path)
+                    if dest.exists():
+                        if dest.is_dir():
+                            logger.error("There exist a directory whose name collides with target file: %s", dest_path)
+                            continue
+                    else:
+                        mp3s.append(title)
 
     logger.info("There are %d files to convert.", len(mp3s))
 
