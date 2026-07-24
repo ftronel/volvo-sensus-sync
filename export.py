@@ -11,6 +11,7 @@ import os
 import coloredlogs
 from mutagen import File
 from tqdm import tqdm
+from typeguard import typechecked
 
 
 AUDIO_EXTENSIONS = { ".mp3", ".flac", ".wav", ".ogg", ".m4a", ".aac", ".wma", 
@@ -139,6 +140,9 @@ def determine_conversions(audios: dict[str,dict[str,list[list[dict]]]], export_d
 
     return res
 
+def convert(input_file: Path, output_file: Path):
+    pass
+
 def main():
     """Main function of the program."""
     logger = logging.getLogger(__name__)
@@ -198,7 +202,7 @@ def main():
 
     sys.exit(0)
 
-    buf = []
+    converters = []
     # Fill up the buffer with nb_threads conversions
     for i in range(0, args.nb_threads):
         pass
