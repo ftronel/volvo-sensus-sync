@@ -26,6 +26,19 @@ def sanitize(name: str) -> str:
     return name
 
 
+def get_audio_list(root: str) -> list[Path]:
+    directories = [ Path(root) ]
+    res = []
+
+    logger.info('Searching for potential audio files')
+    for root in directories:
+        for inode in root.rglob("*"):
+            if inode.is_file() and inode.suffix.lower() in AUDIO_EXTENSIONS:
+                logger.debug("Parsing %s", inode)
+                res.append(inode)
+
+    return res
+
 def main():
     """Main function of the program."""
     logger = logging.getLogger(__name__)
@@ -71,15 +84,7 @@ def main():
         logger.error('Export path must be a directory')
         sys.exit(-1)
 
-    directories = [ Path(args.input_dir) ]
-    files = []
-
-    logger.info('Searching for potential audio files')
-    for root in directories:
-        for inode in root.rglob("*"):
-            if inode.is_file() and inode.suffix.lower() in AUDIO_EXTENSIONS:
-                logger.debug("Parsing %s", inode)
-                files.append(inode)
+    files = get_audio_list(args.input_dir)
 
     logger.info('Found %d files', len(files))
 
@@ -171,12 +176,11 @@ def main():
                             logger.error("There exist a directory whose name collides with target file: %s", dest_path)
                             continue
                     else:
-                        conversions.append(track)
+                        conversions.append(track['to':final_path])
 
     logger.info("There are %d files to convert.", len(conversions))
 
     sys.exit(0)
-
 
     buf = []
     # Fill up the buffer with nb_threads conversions
