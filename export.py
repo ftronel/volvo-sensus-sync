@@ -144,7 +144,7 @@ def main():
                             logger.error("There exist a directory whose name collides with target file: %s", dest_path)
                             continue
                     else:
-                        mp3s.append(title)
+                        mp3s.append(track)
 
     logger.info("There are %d files to convert.", len(mp3s))
 
