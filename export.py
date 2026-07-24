@@ -91,14 +91,20 @@ def main():
             audios[artist] = {}
         albums = audios[artist]
         if album not in albums:
-            albums[album] = []
-        titles = albums[album]
+            albums[album] = {}
+        discs = albums[album]
+        if (disc-1) not in discs:
+            discs[disc-1] = {}
+        titles = discs[disc-1]
         titles.append({'inode': inode, 'title': title, 'disc': disc, 'track': track})
 
     logger.info("Creating export directory structure ...")
+    mp3s = []
     # TODO: replace "/" by "_" in artist, album, title
+    dest_path = args.export_dir
     for artist in audios.keys():
-        dest = Path(f"{args.export_dir}/{artist}")
+        dest_path = f"{dest_path}/{artist}"
+        dest = Path(dest_path)
         if dest.exists() and not dest.is_dir():
             logger.error("A file with %s name exists under export directory.", artist)
             continue
@@ -106,18 +112,37 @@ def main():
             dest.mkdir()
         albums = audios[artist]
         for album in albums:
-            dest = Path(f"{args.export_dir}/{artist}/{album}")
+            dest_path = f"{dest_path}/{album}"
+            dest = Path(dest)
             if dest.exists() and not dest.is_dir():
                 logger.error("A file with %s album exists under export directory.", album)
                 continue
             if not dest.exists():
                 dest.mkdir()
-            titles = albums[album]
+            discs = albums[album]
+            nb_discs = len(album.keys())
+            if nb_discs > 1:
+                dest_path = f"{dest_path}/Disc {disc}"
+                dest = Path(dest_path)
+                if dest.exists() and not dest.is_dir():
+                    logger.error("A file with %s disc exists under export directory.", album)
+                    continue
+                if not dest.exists():
+                    dest.mkdir()
             for title in titles:
-                if title['disc'] > 1:
-                    logger.warning("Multiple discs !")
-                logger.info("%s %s %s", artist, album, title)
+                dest_path = f"{dest_path}/{title}.mp3"
+                dest = Path(dest_path)
+                if dest.exists():
+                    if dest.is_dir():
+                        logger.error("There exist a directory whose name collides with target file: %s", dest_path)
+                        continue
+                else:
+                    mp3s.append(title)
 
+    logger.info("There are %d files to convert.", len(mp3s))
+
+    for mp3 in mp3s:
+         logger.info("%s", mp3)
 
 if __name__ == "__main__":
     main()
