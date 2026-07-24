@@ -103,8 +103,8 @@ def main():
     # TODO: replace "/" by "_" in artist, album, title
     for artist in audios.keys():
         logger.debug("Considering artist %s", artist)
-        dest_path = f"{args.export_dir}/{artist}"
-        dest = Path(dest_path)
+        path1 = f"{args.export_dir}/{artist}"
+        dest = Path(path1)
         if dest.exists() and not dest.is_dir():
             logger.error("A file with %s name exists under export directory.", artist)
             continue
@@ -113,8 +113,8 @@ def main():
         albums = audios[artist]
         for album in albums:
             logger.debug("Considering album %s", album)
-            dest_path = f"{dest_path}/{album}"
-            dest = Path(dest)
+            path2 = f"{path1}/{album}"
+            dest = Path(path2)
             if dest.exists() and not dest.is_dir():
                 logger.error("A file with %s album exists under export directory.", album)
                 continue
@@ -125,13 +125,16 @@ def main():
             for disc in discs.keys():
                 logger.debug("Considering disc %d", disc)
                 if nb_discs > 1:
-                    dest_path = f"{dest_path}/Disc {disc}"
-                    dest = Path(dest_path)
+                    path3 = f"{path2}/Disc {disc}"
+                    dest = Path(path3)
                     if dest.exists() and not dest.is_dir():
                         logger.error("A file with %s disc exists under export directory.", album)
                         continue
                     if not dest.exists():
                         dest.mkdir()
+                    dest_path = path3
+                else:
+                    dest_path = path2
                 tracks = discs[disc]
                 for track in tracks:
                     logger.debug("Considering title: %s", track['title'])
