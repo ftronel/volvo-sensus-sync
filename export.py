@@ -94,7 +94,7 @@ def main():
             albums[album] = {}
         discs = albums[album]
         if (disc-1) not in discs:
-            discs[disc-1] = {}
+            discs[disc-1] = []
         titles = discs[disc-1]
         titles.append({'inode': inode, 'title': title, 'disc': disc, 'track': track})
 
