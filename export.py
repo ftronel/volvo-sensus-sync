@@ -98,8 +98,7 @@ def main():
         tracks = discs[disc-1]
         tracks.append({'inode': inode, 'title': title, 'disc': disc, 'track': track})
 
-    logger.info(tracks)
-
+    logger.debug(audios)
 
     logger.info("Creating export directory structure ...")
     mp3s = []
