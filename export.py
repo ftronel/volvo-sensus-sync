@@ -138,7 +138,7 @@ def main():
                 tracks = discs[disc]
                 for track in tracks:
                     logger.debug("Considering title: %s", track['title'])
-                    final_path = f"{dest_path}/{track['title']}.mp3"
+                    final_path = f"{final_path}/{track['title']}.mp3"
                     dest = Path(final_path)
                     if dest.exists():
                         if dest.is_dir():
