@@ -27,6 +27,8 @@ def sanitize(name: str) -> str:
 
 
 def get_audio_list(root: str) -> list[Path]:
+    logger = logging.getLogger(__name__)
+
     directories = [ Path(root) ]
     res = []
 
