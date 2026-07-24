@@ -39,11 +39,17 @@ def main():
     logger.debug('Arguments: %s',args)
 
     music = Path(args.input_dir)
+    if not music.exits():
+        logger.error('Input path must exist')
+        sys.exit(-1)
     if not music.is_dir():
         logger.error('Input path must be a directory')
         sys.exit(-1)
 
     export = Path(args.export_dir)
+    if not export.exists():
+        logger.error('Export path must exist')
+        sys.exit(-1)
     if not export.is_dir():
         logger.error('Export path must be a directory')
         sys.exit(-1)
@@ -78,6 +84,7 @@ def main():
         album = audio.get("album", ["Inconnu"])[0]
         title = audio.get("title", [inode.stem])[0]
         track = audio.get("tracknumber", [""])[0]
+        track = int(track.split("/")[0])
         if artist not in audios:
             audios[artist] = {}
         albums = audios[artist]
@@ -86,15 +93,26 @@ def main():
         titles = albums[album]
         titles.append({'inode': inode, 'title': title, 'track': track})
 
+    logger.info("Creating export directory structure ...")
     for artist in audios.keys():
+        dest = Path(f"{export_dir}/{artist}")
+        if dest.exists() and not dest.is_dir():
+            logger.error("A file with %s name exists under export directory.", artist)
+            continue
+        if not dest.exists():
+            dest.mkdir()
         albums = audios[artist]
         for album in albums:
+            dest = Path(f"{export_dir}/{artist}/{album}")
+            if dest.exists() and not dest.is_dir():
+                logger.error("A file with %s album exists under export directory.", album)
+                continue
+            if not dest.exists():
+                dest.mkdir()
             titles = albums[album]
             for title in titles:
                 logger.info("%s %s %s", artist, album, title)
 
-
-    
 
 if __name__ == "__main__":
     main()
