@@ -41,6 +41,50 @@ def get_audio_list(root: str) -> list[Path]:
 
     return res
 
+def get_metadata(files: list[Path]) -> dict[str,dict[str,list[list[dict]]]]]:
+    logger = logging.getLogger(__name__)
+
+    res = {}
+    for inode in tqdm(files):
+        try:
+            audio = File(inode, easy=True)
+        except MutagenError:
+            logger.warning(f"Impossible to read: {inode}")
+            continue
+        if audio is None:
+            logger.warning(f"{inode} is not an audio file")
+            continue
+
+        artist = sanitize(audio.get("artist", ["Inconnu"])[0])
+        album = sanitize(audio.get("album", ["Inconnu"])[0])
+        title = sanitize(audio.get("title", [inode.stem])[0])
+        disc = audio.get("discnumber", [""])[0]
+        if "/" in disc:
+            disc_id, nb_discs = map(int, disc.split("/", 1))
+        else:
+            disc_id = int(disc)
+            nb_discs = 1
+        track = audio.get("tracknumber", ["0"])[0]
+        try:
+            track = int(track.split("/")[0])
+        except Exception:
+            logger.error("Bad track number: '%s' for inode %s", track, inode)
+            sys.exit(-1)
+        if artist not in audios:
+            res[artist] = {}
+        albums = res[artist]
+        if album not in albums:
+            albums[album] = {}
+            for d in range(0, nb_discs):
+                albums[album][d+1] = []
+        discs = albums[album]
+        if disc_id not in discs:
+            discs[disc_id] = []
+        tracks = discs[disc_id]
+        tracks.append({'inode': inode, 'title': title, 'disc': disc_id, 'nb_discs': nb_discs, 'track': track})
+
+    return res
+
 def main():
     """Main function of the program."""
     logger = logging.getLogger(__name__)
@@ -91,44 +135,7 @@ def main():
     logger.info('Found %d files', len(files))
 
     logger.info('Retrieving audio metadata')
-    audios = {}
-    for inode in tqdm(files):
-        try:
-            audio = File(inode, easy=True)
-        except MutagenError:
-            logger.warning(f"Impossible to read: {inode}")
-            continue
-        if audio is None:
-            logger.warning(f"{inode} is not an audio file")
-            continue
-
-        artist = sanitize(audio.get("artist", ["Inconnu"])[0])
-        album = sanitize(audio.get("album", ["Inconnu"])[0])
-        title = sanitize(audio.get("title", [inode.stem])[0])
-        disc = audio.get("discnumber", [""])[0]
-        if "/" in disc:
-            disc_id, nb_discs = map(int, disc.split("/", 1))
-        else:
-            disc_id = int(disc)
-            nb_discs = 1
-        track = audio.get("tracknumber", ["0"])[0]
-        try:
-            track = int(track.split("/")[0])
-        except Exception:
-            logger.error("Bad track number: '%s' for inode %s", track, inode)
-            sys.exit(-1)
-        if artist not in audios:
-            audios[artist] = {}
-        albums = audios[artist]
-        if album not in albums:
-            albums[album] = {}
-            for d in range(0, nb_discs):
-                albums[album][d+1] = []
-        discs = albums[album]
-        if disc_id not in discs:
-            discs[disc_id] = []
-        tracks = discs[disc_id]
-        tracks.append({'inode': inode, 'title': title, 'disc': disc_id, 'nb_discs': nb_discs, 'track': track})
+    audios = get_metadata(files)
 
     logger.info("Creating export directory structure ...")
     conversions = []
