@@ -185,7 +185,8 @@ def main():
                             logger.error("There exist a directory whose name collides with target file: %s", dest_path)
                             continue
                     else:
-                        conversions.append(track['to':final_path])
+                        track['to'] = final_path
+                        conversions.append(track)
 
     logger.info("There are %d files to convert.", len(conversions))
 
