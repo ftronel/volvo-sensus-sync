@@ -96,8 +96,6 @@ def main():
         tracks = discs[disc-1]
         tracks.append({'inode': inode, 'title': title, 'disc': disc, 'track': track})
 
-    logger.debug(audios)
-
     logger.info("Creating export directory structure ...")
     mp3s = []
     # TODO: replace "/" by "_" in artist, album, title
@@ -139,6 +137,7 @@ def main():
                 for track in tracks:
                     logger.debug("Considering title: %s", track['title'])
                     final_path = f"{dest_path}/{track['title']}.mp3"
+                    logger.debug("Testing if file %s exists", final_path)
                     dest = Path(final_path)
                     if dest.exists():
                         if dest.is_dir():
