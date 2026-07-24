@@ -84,7 +84,7 @@ def main():
         album = audio.get("album", ["Inconnu"])[0]
         title = audio.get("title", [inode.stem])[0]
         disc = audio.get("discnumber", [""])[0]
-        disc = int(track.split("/")[0])
+        disc = int(disc.split("/")[0])
         track = audio.get("tracknumber", [""])[0]
         track = int(track.split("/")[0])
         if artist not in audios:
