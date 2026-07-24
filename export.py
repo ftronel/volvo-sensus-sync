@@ -123,7 +123,7 @@ def main():
             for d in range(0, nb_discs):
                 albums[album][d+1] = []
         discs = albums[album]
-        if disc_in not in discs:
+        if disc_id not in discs:
             discs[disc_id] = []
         tracks = discs[disc_id]
         tracks.append({'inode': inode, 'title': title, 'disc': disc_id, 'nb_discs': nb_discs, 'track': track})
