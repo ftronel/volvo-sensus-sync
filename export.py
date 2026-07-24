@@ -192,7 +192,7 @@ def main():
     audios = get_metadata(files)
 
     logger.info("Creating export directory structure ...")
-    conversions = determine_conversions(audios, args.output_dir)
+    conversions = determine_conversions(audios, args.export_dir)
 
     logger.info("There are %d files to convert.", len(conversions))
 
