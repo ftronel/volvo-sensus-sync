@@ -70,7 +70,7 @@ def get_metadata(files: list[Path]) -> dict[str,dict[str,list[list[dict]]]]:
         except Exception:
             logger.error("Bad track number: '%s' for inode %s", track, inode)
             sys.exit(-1)
-        if artist not in audios:
+        if artist not in res:
             res[artist] = {}
         albums = res[artist]
         if album not in albums:
