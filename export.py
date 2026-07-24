@@ -20,13 +20,13 @@ AUDIO_EXTENSIONS = { ".mp3", ".flac", ".wav", ".ogg", ".m4a", ".aac", ".wma",
 INVALID = r'[<>:"/\\|?*\x00-\x1F]'
 
 
-
+@typechecked
 def sanitize(name: str) -> str:
     name = re.sub(INVALID, "_", name)
     name = name.rstrip(" .")
     return name
 
-
+@typechecked
 def get_audio_list(root: str) -> list[Path]:
     logger = logging.getLogger(__name__)
 
@@ -42,6 +42,7 @@ def get_audio_list(root: str) -> list[Path]:
 
     return res
 
+@typechecked
 def get_metadata(files: list[Path]) -> dict[str,dict[str,list[list[dict]]]]:
     logger = logging.getLogger(__name__)
 
@@ -86,6 +87,7 @@ def get_metadata(files: list[Path]) -> dict[str,dict[str,list[list[dict]]]]:
 
     return res
 
+@typechecked
 def determine_conversions(audios: dict[str,dict[str,list[list[dict]]]], export_dir: str) -> list:
     logger = logging.getLogger(__name__)
     res = []
