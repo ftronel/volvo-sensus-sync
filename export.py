@@ -7,9 +7,11 @@ from pathlib import Path
 import sys
 import re
 import os
+import shutil
+import subprocess
 
 import coloredlogs
-from mutagen import File, MutagenError
+from mutagen import File, MutagenError, MP3
 from tqdm import tqdm
 from typeguard import typechecked
 
@@ -146,7 +148,22 @@ file: %s", dest_path)
     return res
 
 def convert(input_file: Path, output_file: Path):
-    pass
+    logger = logging.getLogger(__name__)
+
+    audio = File(input_file)
+    if isinstance(audio, MP3):
+        try:
+            output_file.hardlink_to(input_file)
+        except OSError:
+            # Volumes différents ou hard links non supportés
+            shutil.copy2(input_file, output_file)
+        return None
+
+    cmd = [ "ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", str(input_file),
+                "-codec:a", "libmp3lame", "-q:a", "2", str(output_file)]
+    process = subprocess.Popen(cmd)
+
+    return process
 
 def main():
     """Main function of the program."""
