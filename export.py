@@ -143,7 +143,7 @@ def determine_conversions(audios: dict[str,dict[str,dict[int,list[dict[str, int|
 file: %s", dest_path)
                             continue
                     else:
-                        track['to'] = final_path
+                        track['to'] = dest
                         res.append(track)
 
     return res
@@ -225,15 +225,30 @@ def main():
 
     sys.exit(0)
 
-    converters = []
+    converters = {}
     # Fill up the buffer with nb_threads conversions
-    for i in range(0, args.nb_threads):
-        pass
+    nb_procs = 0
+    while nb_procs < args.nb_threads:
+        current = conversions.pop()
+        proc = convert(current['inode'], current['to'])
+        # If we draw an MP3 file we keep on trying to fill processor with conversion
+        if proc is None:
+            continue
+        converters[proc.pid] = current
+        nb_procs += 1
 
-    while len(conversions) > 0:
-        current = conversions.first()
-        # Each time a conversion ends up, start a new one until the list of conversion is empty
-        logger.info("%s", current)
+    while (len(conversions) > 0)  and (len(converters) > 0):
+        # Wait for completion of a subprocess
+        pid, status = os.wait()
+        if  os.WEXITSTATUS(status) != 0:
+            logger.error('Conversion was not successuful for %s', converters[pid])
+        del converters[pid]
+        while len(conversions) > 0:
+            current = conversions.pop()
+            proc = convert(current['inode'], current['to'])
+            if proc is None:
+                continue
+            converters[proc.pid] = current
 
 if __name__ == "__main__":
     main()
