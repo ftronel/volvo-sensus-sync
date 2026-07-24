@@ -115,7 +115,7 @@ def main():
         albums = audios[artist]
         if album not in albums:
             albums[album] = {}
-            for d in range(1, nb_discs):
+            for d in range(1, nb_discs+1):
                 albums[album][d] = []
         discs = albums[album]
         tracks = discs[disc_id]
