@@ -120,7 +120,7 @@ def main():
             if not dest.exists():
                 dest.mkdir()
             discs = albums[album]
-            nb_discs = len(album.keys())
+            nb_discs = len(discs.keys())
             if nb_discs > 1:
                 dest_path = f"{dest_path}/Disc {disc}"
                 dest = Path(dest_path)
