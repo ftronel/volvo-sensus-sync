@@ -102,6 +102,7 @@ def main():
     mp3s = []
     # TODO: replace "/" by "_" in artist, album, title
     for artist in audios.keys():
+        logger.debug("Considering artist %s", artist)
         dest_path = f"{args.export_dir}/{artist}"
         dest = Path(dest_path)
         if dest.exists() and not dest.is_dir():
@@ -111,6 +112,7 @@ def main():
             dest.mkdir()
         albums = audios[artist]
         for album in albums:
+            logger.debug("Considering album %s", album)
             dest_path = f"{dest_path}/{album}"
             dest = Path(dest)
             if dest.exists() and not dest.is_dir():
@@ -121,6 +123,7 @@ def main():
             discs = albums[album]
             nb_discs = len(discs.keys())
             for disc in discs.keys():
+                logger.debug("Considering disc %d", disc)
                 if nb_discs > 1:
                     dest_path = f"{dest_path}/Disc {disc}"
                     dest = Path(dest_path)
@@ -131,6 +134,7 @@ def main():
                         dest.mkdir()
                 tracks = discs[disc]
                 for track in tracks:
+                    Considering("Considering title: %s", track['title'])
                     dest_path = f"{dest_path}/{track['title']}.mp3"
                     dest = Path(dest_path)
                     if dest.exists():
