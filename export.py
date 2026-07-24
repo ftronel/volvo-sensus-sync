@@ -114,6 +114,8 @@ def main():
                 dest.mkdir()
             titles = albums[album]
             for title in titles:
+                if title['disc'] > 1:
+                    logger.warning("Multiple discs !")
                 logger.info("%s %s %s", artist, album, title)
 
 
