@@ -9,12 +9,12 @@ import re
 import os
 
 import coloredlogs
-from mutagen import File
+from mutagen import File, MutagenError
 from tqdm import tqdm
 from typeguard import typechecked
 
 
-AUDIO_EXTENSIONS = { ".mp3", ".flac", ".wav", ".ogg", ".m4a", ".aac", ".wma", 
+AUDIO_EXTENSIONS = { ".mp3", ".flac", ".wav", ".ogg", ".m4a", ".aac", ".wma",
                     ".opus", ".aiff", ".alac" }
 
 INVALID = r'[<>:"/\\|?*\x00-\x1F]'
@@ -34,8 +34,8 @@ def get_audio_list(root: str) -> list[Path]:
     res = []
 
     logger.info('Searching for potential audio files')
-    for root in directories:
-        for inode in root.rglob("*"):
+    for d in directories:
+        for inode in d.rglob("*"):
             if inode.is_file() and inode.suffix.lower() in AUDIO_EXTENSIONS:
                 logger.debug("Parsing %s", inode)
                 res.append(inode)
@@ -51,10 +51,10 @@ def get_metadata(files: list[Path]) -> dict[str,dict[str,dict[int,list[dict[str,
         try:
             audio = File(inode, easy=True)
         except MutagenError:
-            logger.warning(f"Impossible to read: {inode}")
+            logger.warning("Impossible to read: %s", inode)
             continue
         if audio is None:
-            logger.warning(f"{inode} is not an audio file")
+            logger.warning("%s is not an audio file", inode)
             continue
 
         artist = sanitize(audio.get("artist", ["Inconnu"])[0])
@@ -69,7 +69,7 @@ def get_metadata(files: list[Path]) -> dict[str,dict[str,dict[int,list[dict[str,
         track = audio.get("tracknumber", ["0"])[0]
         try:
             track = int(track.split("/")[0])
-        except Exception:
+        except (ValueError,TypeError):
             logger.error("Bad track number: '%s' for inode %s", track, inode)
             sys.exit(-1)
         if artist not in res:
@@ -83,12 +83,14 @@ def get_metadata(files: list[Path]) -> dict[str,dict[str,dict[int,list[dict[str,
         if disc_id not in discs:
             discs[disc_id] = []
         tracks = discs[disc_id]
-        tracks.append({'inode': inode, 'title': title, 'disc': disc_id, 'nb_discs': nb_discs, 'track': track})
+        tracks.append({'inode': inode, 'title': title, 'disc': disc_id, 'nb_discs': nb_discs,
+                       'track': track})
 
     return res
 
 @typechecked
-def determine_conversions(audios: dict[str,dict[str,dict[int,list[dict[str, int|str|Path]]]]], export_dir: str) -> list:
+def determine_conversions(audios: dict[str,dict[str,dict[int,list[dict[str, int|str|Path]]]]],
+                          export_dir: str) -> list:
     logger = logging.getLogger(__name__)
     res = []
 
@@ -134,7 +136,8 @@ def determine_conversions(audios: dict[str,dict[str,dict[int,list[dict[str, int|
                     dest = Path(final_path)
                     if dest.exists():
                         if dest.is_dir():
-                            logger.error("There exist a directory whose name collides with target file: %s", dest_path)
+                            logger.error("There exist a directory whose name collides with target\
+file: %s", dest_path)
                             continue
                     else:
                         track['to'] = final_path
