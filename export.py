@@ -84,7 +84,11 @@ def main():
         disc = audio.get("discnumber", [""])[0]
         disc = int(disc.split("/")[0])
         track = audio.get("tracknumber", [""])[0]
-        track = int(track.split("/")[0])
+        try:
+            track = int(track.split("/")[0])
+        except Exception:
+            logger.error("Bad track number: %s", track)
+            sys.exit(-1)
         if artist not in audios:
             audios[artist] = {}
         albums = audios[artist]
@@ -148,8 +152,9 @@ def main():
 
     logger.info("There are %d files to convert.", len(mp3s))
 
+
     for mp3 in mp3s:
-         logger.info("%s", mp3)
+        logger.info("%s", mp3)
 
 if __name__ == "__main__":
     main()
