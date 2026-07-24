@@ -87,7 +87,7 @@ def main():
         try:
             track = int(track.split("/")[0])
         except Exception:
-            logger.error("Bad track number: %s", track)
+            logger.error("Bad track number: '%s' for inode %s", track, inode)
             sys.exit(-1)
         if artist not in audios:
             audios[artist] = {}
