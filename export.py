@@ -83,7 +83,7 @@ def main():
         title = audio.get("title", [inode.stem])[0]
         disc = audio.get("discnumber", [""])[0]
         disc = int(disc.split("/")[0])
-        track = audio.get("tracknumber", [""])[0]
+        track = audio.get("tracknumber", ["0"])[0]
         try:
             track = int(track.split("/")[0])
         except Exception:
