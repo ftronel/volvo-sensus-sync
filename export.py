@@ -85,6 +85,60 @@ def get_metadata(files: list[Path]) -> dict[str,dict[str,list[list[dict]]]]:
 
     return res
 
+def determine_conversions(audios: dict[str,dict[str,list[list[dict]]]], export_dir: str) -> list:
+    logger = logging.getLogger(__name__)
+    res = []
+
+    for artist in audios.keys():
+        logger.debug("Considering artist %s", artist)
+        path1 = f"{export_dir}/{artist}"
+        dest = Path(path1)
+        if dest.exists() and not dest.is_dir():
+            logger.error("A file with %s name exists under export directory.", artist)
+            continue
+        if not dest.exists():
+            dest.mkdir()
+        albums = audios[artist]
+        for album in albums:
+            logger.debug("Considering album %s", album)
+            path2 = f"{path1}/{album}"
+            dest = Path(path2)
+            if dest.exists() and not dest.is_dir():
+                logger.error("A file with %s album exists under export directory.", album)
+                continue
+            if not dest.exists():
+                dest.mkdir()
+            discs = albums[album]
+            nb_discs = len(discs.keys())
+            for disc in discs.keys():
+                logger.debug("Considering disc %d", disc)
+                if nb_discs > 1:
+                    path3 = f"{path2}/Disc {disc}"
+                    dest = Path(path3)
+                    if dest.exists() and not dest.is_dir():
+                        logger.error("A file with %s disc exists under export directory.", album)
+                        continue
+                    if not dest.exists():
+                        dest.mkdir()
+                    dest_path = path3
+                else:
+                    dest_path = path2
+                tracks = discs[disc]
+                for track in tracks:
+                    logger.debug("Considering title: %s", track['title'])
+                    final_path = f"{dest_path}/{track['track']:02d}-{track['title']}.mp3"
+                    logger.debug("Testing if file %s exists", final_path)
+                    dest = Path(final_path)
+                    if dest.exists():
+                        if dest.is_dir():
+                            logger.error("There exist a directory whose name collides with target file: %s", dest_path)
+                            continue
+                    else:
+                        track['to'] = final_path
+                        res.append(track)
+
+    return res
+
 def main():
     """Main function of the program."""
     logger = logging.getLogger(__name__)
@@ -138,55 +192,7 @@ def main():
     audios = get_metadata(files)
 
     logger.info("Creating export directory structure ...")
-    conversions = []
-    # TODO: replace "/" by "_" in artist, album, title
-    for artist in audios.keys():
-        logger.debug("Considering artist %s", artist)
-        path1 = f"{args.export_dir}/{artist}"
-        dest = Path(path1)
-        if dest.exists() and not dest.is_dir():
-            logger.error("A file with %s name exists under export directory.", artist)
-            continue
-        if not dest.exists():
-            dest.mkdir()
-        albums = audios[artist]
-        for album in albums:
-            logger.debug("Considering album %s", album)
-            path2 = f"{path1}/{album}"
-            dest = Path(path2)
-            if dest.exists() and not dest.is_dir():
-                logger.error("A file with %s album exists under export directory.", album)
-                continue
-            if not dest.exists():
-                dest.mkdir()
-            discs = albums[album]
-            nb_discs = len(discs.keys())
-            for disc in discs.keys():
-                logger.debug("Considering disc %d", disc)
-                if nb_discs > 1:
-                    path3 = f"{path2}/Disc {disc}"
-                    dest = Path(path3)
-                    if dest.exists() and not dest.is_dir():
-                        logger.error("A file with %s disc exists under export directory.", album)
-                        continue
-                    if not dest.exists():
-                        dest.mkdir()
-                    dest_path = path3
-                else:
-                    dest_path = path2
-                tracks = discs[disc]
-                for track in tracks:
-                    logger.debug("Considering title: %s", track['title'])
-                    final_path = f"{dest_path}/{track['track']:02d}-{track['title']}.mp3"
-                    logger.debug("Testing if file %s exists", final_path)
-                    dest = Path(final_path)
-                    if dest.exists():
-                        if dest.is_dir():
-                            logger.error("There exist a directory whose name collides with target file: %s", dest_path)
-                            continue
-                    else:
-                        track['to'] = final_path
-                        conversions.append(track)
+    conversions = determine_conversions(audios, args.output_dir)
 
     logger.info("There are %d files to convert.", len(conversions))
 
