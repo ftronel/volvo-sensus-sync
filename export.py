@@ -5,6 +5,7 @@ import argparse
 import logging
 from pathlib import Path
 import sys
+import re
 
 import coloredlogs
 from mutagen import File
@@ -13,6 +14,16 @@ from tqdm import tqdm
 
 AUDIO_EXTENSIONS = { ".mp3", ".flac", ".wav", ".ogg", ".m4a", ".aac", ".wma", 
                     ".opus", ".aiff", ".alac" }
+
+INVALID = r'[<>:"/\\|?*\x00-\x1F]'
+
+
+
+def sanitize(name: str) -> str:
+    name = re.sub(INVALID, "_", name)
+    name = name.rstrip(" .")
+    return name
+
 
 def main():
     """Main function of the program."""
@@ -24,6 +35,8 @@ def main():
                         help="Directory containing music to convert.")
     parser.add_argument("-e","--export", action='store', dest='export_dir', required=True,
                         help="Directory where to export MP3.")
+    parser.add_argument("-T","--threads", action='store', dest='nb_threads', required=False,
+                        help="Number of conversion to launch simultaneously.")
     parser.add_argument("-#","--number", action='store', dest='number_dirs',
                         type=int, default=2,\
                         help="Number of sub directories to create in the export directory to \
@@ -35,6 +48,9 @@ def main():
     if args.verbose:
         logger.info('Setting logging to debug mode')
         coloredlogs.set_level(level=logging.DEBUG)
+
+    if args.nb_threads is None:
+        args.nb_threads = os.cpu_count() or 1
 
     logger.debug('Arguments: %s',args)
 
@@ -78,11 +94,15 @@ def main():
             logger.warning(f"{inode} is not an audio file")
             continue
 
-        artist = audio.get("artist", ["Inconnu"])[0]
-        album = audio.get("album", ["Inconnu"])[0]
-        title = audio.get("title", [inode.stem])[0]
+        artist = sanitize(audio.get("artist", ["Inconnu"])[0])
+        album = sanitize(audio.get("album", ["Inconnu"])[0])
+        title = sanitize(audio.get("title", [inode.stem])[0])
         disc = audio.get("discnumber", [""])[0]
-        disc = int(disc.split("/")[0])
+        if "/" in disc:
+            disc_id, nb_discs = map(int, disc.split("/", 1))
+        else:
+            disc_id = int(disc)
+            nb_discs = 1
         track = audio.get("tracknumber", ["0"])[0]
         try:
             track = int(track.split("/")[0])
@@ -94,14 +114,14 @@ def main():
         albums = audios[artist]
         if album not in albums:
             albums[album] = {}
+            for d in range(1, nb_discs)
+                albums[album][d] = []
         discs = albums[album]
-        if (disc-1) not in discs:
-            discs[disc-1] = []
-        tracks = discs[disc-1]
-        tracks.append({'inode': inode, 'title': title, 'disc': disc, 'track': track})
+        tracks = discs[disc_id]
+        tracks.append({'inode': inode, 'title': title, 'disc': disc_id, 'nb_discs': nb_discs, 'track': track})
 
     logger.info("Creating export directory structure ...")
-    mp3s = []
+    conversions = []
     # TODO: replace "/" by "_" in artist, album, title
     for artist in audios.keys():
         logger.debug("Considering artist %s", artist)
@@ -148,13 +168,22 @@ def main():
                             logger.error("There exist a directory whose name collides with target file: %s", dest_path)
                             continue
                     else:
-                        mp3s.append(track)
+                        conversions.append(track)
 
-    logger.info("There are %d files to convert.", len(mp3s))
+    logger.info("There are %d files to convert.", len(conversions))
+
+    sys.exit(0)
 
 
-    for mp3 in mp3s:
-        logger.info("%s", mp3)
+    buf = []
+    # Fill up the buffer with nb_threads conversions
+    for i in range(0, args.nb_threads):
+        pass
+
+    while len(conversions) > 0:
+        current = conversions.first()
+        # Each time a conversion ends up, start a new one until the list of conversion is empty
+        logger.info("%s", current)
 
 if __name__ == "__main__":
     main()
