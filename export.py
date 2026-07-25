@@ -237,8 +237,10 @@ def main():
 
     logger.info("There are %d files to convert.", len(conversions))
 
+    running = {}
+    errors = []
     progress = tqdm(total=len(conversions), desc="Conversions", unit="Track")
-    converters = {}
+    progress.set_postfix(active=len(running), errors=len(errors))
     # Fill up the buffer with nb_threads conversions
     nb_procs = 0
     logger.debug("Filling CPUs with %d conversions", args.nb_threads)
@@ -249,27 +251,28 @@ def main():
         if proc is None:
             progress.update(1)
             continue
-        converters[proc.pid] = current
+        running[proc.pid] = current
         nb_procs += 1
 
-    while (len(conversions) > 0)  and (len(converters) > 0):
+    while (len(conversions) > 0)  and (len(running) > 0):
         # Wait for completion of a subprocess
         logger.debug("Waiting for conversion completion")
         pid, status = os.wait()
         if  os.WEXITSTATUS(status) != 0:
-            logger.error('Conversion was not successuful for %s', converters[pid])
+            logger.error('Conversion was not successuful for %s', running[pid])
+            errors.append(running[pid])
             progress.update(1)
         else:
-            logger.debug('Conversion of %s was successful', converters[pid])
+            logger.debug('Conversion of %s was successful', running[pid])
             progress.update(1)
-        del converters[pid]
-        while (len(converters) != args.nb_threads) and (len(conversions) > 0):
+        del running[pid]
+        while (len(running) != args.nb_threads) and (len(conversions) > 0):
             current = conversions.pop()
             proc = convert(current['inode'], current['to'])
             if proc is None:
                 progress.update(1)
                 continue
-            converters[proc.pid] = current
+            running[proc.pid] = current
 
     logger.info("Determining MP3 total size")
     size = mp3_total_size(export)
