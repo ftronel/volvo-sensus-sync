@@ -151,8 +151,12 @@ file: %s", dest_path)
 def convert(input_file: Path, output_file: Path):
     logger = logging.getLogger(__name__)
 
-
     logger.debug("Converting %s into %s", input_file, output_file)
+
+    if output_file.exists():
+        logger.warning('Destination file %s already exists !', output_file)
+        return None
+
     audio = File(input_file)
     if isinstance(audio, MP3):
         try:
