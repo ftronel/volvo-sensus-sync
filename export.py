@@ -225,6 +225,8 @@ def main():
 
     logger.info("There are %d files to convert.", len(conversions))
 
+    progress = tqdm(total=len(conversions), desc="Conversions", unit="Track")
+
     converters = {}
     # Fill up the buffer with nb_threads conversions
     nb_procs = 0
@@ -234,6 +236,7 @@ def main():
         proc = convert(current['inode'], current['to'])
         # If we draw an MP3 file we keep on trying to fill processor with conversion
         if proc is None:
+            progress.update(1)
             continue
         converters[proc.pid] = current
         nb_procs += 1
@@ -244,14 +247,17 @@ def main():
         pid, status = os.wait()
         if  os.WEXITSTATUS(status) != 0:
             logger.error('Conversion was not successuful for %s', converters[pid])
+            progress.update(1)
         else:
             logger.info('Conversion of %s was successful', converters[pid])
+            progress.update(1)
         del converters[pid]
         found = False
         while not found and (len(conversions) > 0):
             current = conversions.pop()
             proc = convert(current['inode'], current['to'])
             if proc is None:
+                progress.update(1)
                 continue
             converters[proc.pid] = current
             found = True
