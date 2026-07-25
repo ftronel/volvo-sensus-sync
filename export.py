@@ -170,6 +170,16 @@ def convert(input_file: Path, output_file: Path):
 
     return process
 
+@typechecked
+def mp3_total_size(export_dir: Path) -> int:
+
+    size = 0
+    for inode in export_dir.rglob("*"):
+        if inode.is_file() and inode.suffix.lower() == 'mp3':
+            size += inode.stat().st_size
+
+    return size
+
 def main():
     """Main function of the program."""
     logger = logging.getLogger(__name__)
@@ -262,6 +272,10 @@ def main():
                 continue
             converters[proc.pid] = current
             found = True
+
+    logger.info("Determining MP3 total size")
+    size = mp3_total_size(export)
+    logger.info("MP3 total size: %d", size)
 
 if __name__ == "__main__":
     main()
