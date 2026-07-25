@@ -175,7 +175,7 @@ def mp3_total_size(export_dir: Path) -> int:
 
     size = 0
     for inode in export_dir.rglob("*"):
-        if inode.is_file() and inode.suffix.lower() == 'mp3':
+        if inode.is_file() and inode.suffix.lower() == '.mp3':
             size += inode.stat().st_size
 
     return size
