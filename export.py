@@ -180,6 +180,17 @@ def mp3_total_size(export_dir: Path) -> int:
 
     return size
 
+@typechecked
+def stats_by_artist(export_dir: Path) -> dict[str, int]:
+    stats = {}
+    total = 0
+    for artist in export_dir.glob("*"):
+        size = mp3_total_size(artist)
+        total += size
+        stats[artist] = total
+
+    return stats
+
 def main():
     """Main function of the program."""
     logger = logging.getLogger(__name__)
