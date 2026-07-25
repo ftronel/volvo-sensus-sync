@@ -263,15 +263,13 @@ def main():
             logger.debug('Conversion of %s was successful', converters[pid])
             progress.update(1)
         del converters[pid]
-        found = False
-        while not found and (len(conversions) > 0):
+        while (len(converters) != args.nb_threads) and (len(conversions) > 0):
             current = conversions.pop()
             proc = convert(current['inode'], current['to'])
             if proc is None:
                 progress.update(1)
                 continue
             converters[proc.pid] = current
-            found = True
 
     logger.info("Determining MP3 total size")
     size = mp3_total_size(export)
