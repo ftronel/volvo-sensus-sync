@@ -30,18 +30,16 @@ def sanitize(name: str) -> str:
     return name
 
 @typechecked
-def get_audio_list(root: str) -> list[Path]:
+def get_audio_list(root: Path) -> list[Path]:
     logger = logging.getLogger(__name__)
 
-    directories = [ Path(root) ]
     res = []
 
     logger.info('Searching for potential audio files')
-    for d in directories:
-        for inode in d.rglob("*"):
-            if inode.is_file() and inode.suffix.lower() in AUDIO_EXTENSIONS:
-                logger.debug("Parsing %s", inode)
-                res.append(inode)
+    for inode in root.rglob("*"):
+        if inode.is_file() and inode.suffix.lower() in AUDIO_EXTENSIONS:
+            logger.debug("Parsing %s", inode)
+            res.append(inode)
 
     return res
 
@@ -93,7 +91,7 @@ def get_metadata(files: list[Path]) -> dict[str,dict[str,dict[int,list[dict[str,
 
 @typechecked
 def determine_conversions(audios: dict[str,dict[str,dict[int,list[dict[str, int|str|Path]]]]],
-                          export_dir: str) -> list[dict[str, int|str|Path]]:
+                          export_dir: Path) -> list[dict[str, int|str|Path]]:
     logger = logging.getLogger(__name__)
     res = []
 
@@ -217,7 +215,7 @@ def main():
         logger.error('Export path must be a directory')
         sys.exit(-1)
 
-    files = get_audio_list(args.input_dir)
+    files = get_audio_list(music)
 
     logger.info('Found %d files', len(files))
 
@@ -225,7 +223,7 @@ def main():
     audios = get_metadata(files)
 
     logger.info("Creating export directory structure ...")
-    conversions = determine_conversions(audios, args.export_dir)
+    conversions = determine_conversions(audios, export)
 
     logger.info("There are %d files to convert.", len(conversions))
 
