@@ -226,11 +226,10 @@ def main():
     logger.info("There are %d files to convert.", len(conversions))
 
     progress = tqdm(total=len(conversions), desc="Conversions", unit="Track")
-
     converters = {}
     # Fill up the buffer with nb_threads conversions
     nb_procs = 0
-    logger.info("Filling CPUs with %d conversions", args.nb_threads)
+    logger.debug("Filling CPUs with %d conversions", args.nb_threads)
     while (nb_procs < args.nb_threads) and (len(conversions) >0):
         current = conversions.pop()
         proc = convert(current['inode'], current['to'])
@@ -243,13 +242,13 @@ def main():
 
     while (len(conversions) > 0)  and (len(converters) > 0):
         # Wait for completion of a subprocess
-        logger.info("Waiting for conversion completion")
+        logger.debug("Waiting for conversion completion")
         pid, status = os.wait()
         if  os.WEXITSTATUS(status) != 0:
             logger.error('Conversion was not successuful for %s', converters[pid])
             progress.update(1)
         else:
-            logger.info('Conversion of %s was successful', converters[pid])
+            logger.debug('Conversion of %s was successful', converters[pid])
             progress.update(1)
         del converters[pid]
         found = False
