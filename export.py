@@ -238,9 +238,9 @@ def main():
         converters[proc.pid] = current
         nb_procs += 1
 
-    logger.info("Waiting for conversion completion")
     while (len(conversions) > 0)  and (len(converters) > 0):
         # Wait for completion of a subprocess
+        logger.info("Waiting for conversion completion")
         pid, status = os.wait()
         if  os.WEXITSTATUS(status) != 0:
             logger.error('Conversion was not successuful for %s', converters[pid])
