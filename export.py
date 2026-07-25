@@ -271,11 +271,15 @@ def main():
     logger.info('Retrieving audio metadata')
     audios = get_metadata(files)
 
+    logger.info('Sorting files by artist')
+    audios = dict(sorted(audios.items()))
+
     logger.info("Creating export directory structure ...")
     conversions = determine_conversions(audios, export)
 
     logger.info("There are %d files to convert.", len(conversions))
 
+    # TODO: write a function
     running = {}
     errors = []
     progress = tqdm(total=len(conversions), desc="Conversions", unit="Track")
@@ -289,6 +293,7 @@ def main():
         # If we draw an MP3 file we keep on trying to fill processor with conversion
         if proc is None:
             progress.update(1)
+            progress.set_postfix(active=len(running), errors=len(errors))
             continue
         running[proc.pid] = current
         nb_procs += 1
@@ -297,22 +302,27 @@ def main():
         or ((len(running) > 0) and stop_requested) :
         # Wait for completion of a subprocess
         logger.debug("Waiting for conversion completion")
-        pid, status = os.wait()
+        try:
+            pid, status = os.wait()
+        except KeyboardInterrupt:
+            continue
         if  os.WEXITSTATUS(status) != 0:
             logger.error('Conversion was not successuful for %s', running[pid])
             errors.append(running[pid])
-            progress.update(1)
         else:
             logger.debug('Conversion of %s was successful', running[pid])
-            progress.update(1)
         del running[pid]
+        progress.update(1)
+        progress.set_postfix(active=len(running), errors=len(errors))
         while (len(running) != args.nb_threads) and (len(conversions) > 0) and not stop_requested:
             current = conversions.pop()
             proc = convert(current['inode'], current['to'])
             if proc is None:
                 progress.update(1)
+                progress.set_postfix(active=len(running), errors=len(errors))
                 continue
             running[proc.pid] = current
+            progress.set_postfix(active=len(running), errors=len(errors))
 
     logger.info("Determining MP3 total size")
     size = mp3_total_size(export)
@@ -321,14 +331,14 @@ def main():
     logger.info("Sorting by alphabetic order")
     stats = dict(sorted(stats.items()))
     logger.info("Searching for cut artist")
-    artist,cut_size = find_cut_artist(stats, args.max_dir_size)
-    if artist is None:
+    artist_cut,cut_size = find_cut_artist(stats, args.max_dir_size)
+    if artist_cut is None:
         logger.error("Impossible to find a cut artist")
         sys.exit(-1)
     if mp3_total_size-cut_size > args.max_dir_size:
         logger.error("Impossible to find a cut artist")
         sys.exit(-1)
-    logger.info("Cutting at %s allows two compatible partitions (%d/%d)", artist, cut_size,
+    logger.info("Cutting at %s allows two compatible partitions (%d/%d)", artist_cut, cut_size,
                 mp3_total_size-cut_size)
 
 if __name__ == "__main__":
