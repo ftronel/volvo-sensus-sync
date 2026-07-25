@@ -229,7 +229,7 @@ def main():
     # Fill up the buffer with nb_threads conversions
     nb_procs = 0
     logger.info("Filling CPUs with %d conversions", args.nb_threads)
-    while nb_procs < args.nb_threads:
+    while (nb_procs < args.nb_threads) and (len(conversions) >0):
         current = conversions.pop()
         proc = convert(current['inode'], current['to'])
         # If we draw an MP3 file we keep on trying to fill processor with conversion
