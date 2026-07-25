@@ -183,13 +183,25 @@ def mp3_total_size(export_dir: Path) -> int:
 @typechecked
 def stats_by_artist(export_dir: Path) -> dict[str, int]:
     stats = {}
-    total = 0
     for artist in export_dir.glob("*"):
         size = mp3_total_size(artist)
-        total += size
-        stats[artist] = total
+        stats[artist] = size
 
     return stats
+
+def find_cut_artist(stats: dict[str, int], max_size:int) -> (str|None, int):
+    stats = sorted(stats)
+    prev_artist = None
+    total = 0
+    for artist in stats:
+        size = stats[artist]
+        if total+size > max_size:
+            return prev_artist, total
+        total += size
+        prev_artist = artist
+
+    return prev_artist, total
+
 
 def main():
     """Main function of the program."""
@@ -207,6 +219,9 @@ def main():
                         type=int, default=2,\
                         help="Number of sub directories to create in the export directory to \
                             divide it equally.")
+    parser.add_argument("-S","--size", action='store', dest='max_dir_size',
+                        type=int, default=14500000000,\
+                        help="Maximal size of each export directory")
 
     args = parser.parse_args()
     logger.info('Arguments: %s',args)
@@ -288,6 +303,17 @@ def main():
     logger.info("Determining MP3 total size")
     size = mp3_total_size(export)
     logger.info("MP3 total size: %d", size)
+    stats = stats_by_artist(export)
+    logger.info("Searching for cut artist")
+    artist,cut_size = find_cut_artist(stats, args.max_dir_size)
+    if artist is None:
+        logger.error("Impossible to find a cut artist")
+        sys.exit(-1)
+    if mp3_total_size-cut_size > args.max_dir_size:
+        logger.error("Impossible to find a cut artist")
+        sys.exit(-1)
+    logger.info("Cutting at %s allows two compatible partitions (%d/%d)", artist, cut_size,
+                mp3_total_size-cut_size)
 
 if __name__ == "__main__":
     main()
