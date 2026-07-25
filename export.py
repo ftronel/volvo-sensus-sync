@@ -60,7 +60,7 @@ def get_metadata(files: list[Path]) -> dict[str,dict[str,dict[int,list[dict[str,
             logger.warning("%s is not an audio file", inode)
             continue
 
-        artist = sanitize(audio.get("artist", ["Inconnu"])[0])
+        artist = sanitize(audio.get("albumartist", ["Inconnu"])[0])
         album = sanitize(audio.get("album", ["Inconnu"])[0])
         title = sanitize(audio.get("title", [inode.stem])[0])
         disc = audio.get("discnumber", [""])[0]
@@ -151,6 +151,8 @@ file: %s", dest_path)
 def convert(input_file: Path, output_file: Path):
     logger = logging.getLogger(__name__)
 
+
+    logger.debug("Converting %s into %s", input_file, output_file)
     audio = File(input_file)
     if isinstance(audio, MP3):
         try:
@@ -223,11 +225,10 @@ def main():
 
     logger.info("There are %d files to convert.", len(conversions))
 
-    sys.exit(0)
-
     converters = {}
     # Fill up the buffer with nb_threads conversions
     nb_procs = 0
+    logger.info("Filling CPUs with %d conversions", args.nb_threads)
     while nb_procs < args.nb_threads:
         current = conversions.pop()
         proc = convert(current['inode'], current['to'])
@@ -237,11 +238,14 @@ def main():
         converters[proc.pid] = current
         nb_procs += 1
 
+    logger.info("Waiting for conversion completion")
     while (len(conversions) > 0)  and (len(converters) > 0):
         # Wait for completion of a subprocess
         pid, status = os.wait()
         if  os.WEXITSTATUS(status) != 0:
             logger.error('Conversion was not successuful for %s', converters[pid])
+        else:
+            logger.info('Conversion of %s was successful', converters[pid])
         del converters[pid]
         while len(conversions) > 0:
             current = conversions.pop()
