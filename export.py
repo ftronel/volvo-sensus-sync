@@ -9,6 +9,7 @@ import re
 import os
 import shutil
 import subprocess
+import signal
 
 import coloredlogs
 from mutagen import File, MutagenError
@@ -22,6 +23,14 @@ AUDIO_EXTENSIONS = { ".mp3", ".flac", ".wav", ".ogg", ".m4a", ".aac", ".wma",
 
 INVALID = r'[<>:"/\\|?*\x00-\x1F]'
 
+
+stop_requested = False
+
+def sigint_handler(signum, frame):
+    logger = logging.getLogger(__name__)
+    global stop_requested
+    stop_requested = True
+    logger.warning("Please wait during graceful shutdown")
 
 @typechecked
 def sanitize(name: str) -> str:
@@ -189,8 +198,8 @@ def stats_by_artist(export_dir: Path) -> dict[str, int]:
 
     return stats
 
+@typechecked
 def find_cut_artist(stats: dict[str, int], max_size:int) -> (str|None, int):
-    stats = sorted(stats)
     prev_artist = None
     total = 0
     for artist in stats:
@@ -206,6 +215,10 @@ def find_cut_artist(stats: dict[str, int], max_size:int) -> (str|None, int):
 def main():
     """Main function of the program."""
     logger = logging.getLogger(__name__)
+
+    # Install signal handler
+    signal.signal(signal.SIGINT, sigint_handler)
+
     coloredlogs.install()
     parser = argparse.ArgumentParser()
     parser.add_argument("-v","--verbose", action='store_true', dest='verbose', help="Debug.")
@@ -280,7 +293,8 @@ def main():
         running[proc.pid] = current
         nb_procs += 1
 
-    while (len(conversions) > 0)  and (len(running) > 0):
+    while ((len(conversions) > 0)  and (len(running) > 0) and not stop_requested)\
+        or ((len(running) > 0) and stop_requested) :
         # Wait for completion of a subprocess
         logger.debug("Waiting for conversion completion")
         pid, status = os.wait()
@@ -292,7 +306,7 @@ def main():
             logger.debug('Conversion of %s was successful', running[pid])
             progress.update(1)
         del running[pid]
-        while (len(running) != args.nb_threads) and (len(conversions) > 0):
+        while (len(running) != args.nb_threads) and (len(conversions) > 0) and not stop_requested:
             current = conversions.pop()
             proc = convert(current['inode'], current['to'])
             if proc is None:
@@ -304,6 +318,8 @@ def main():
     size = mp3_total_size(export)
     logger.info("MP3 total size: %d", size)
     stats = stats_by_artist(export)
+    logger.info("Sorting by alphabetic order")
+    stats = dict(sorted(stats.items()))
     logger.info("Searching for cut artist")
     artist,cut_size = find_cut_artist(stats, args.max_dir_size)
     if artist is None:
