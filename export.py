@@ -247,12 +247,14 @@ def main():
         else:
             logger.info('Conversion of %s was successful', converters[pid])
         del converters[pid]
-        while len(conversions) > 0:
+        found = False
+        while not found and (len(conversions) > 0):
             current = conversions.pop()
             proc = convert(current['inode'], current['to'])
             if proc is None:
                 continue
             converters[proc.pid] = current
+            found = True
 
 if __name__ == "__main__":
     main()
