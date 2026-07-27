@@ -199,7 +199,7 @@ def stats_by_artist(export_dir: Path) -> dict[Path, int]:
     return stats
 
 @typechecked
-def find_cut_artist(stats: dict[str, int], max_size:int) -> (str|None, int):
+def find_cut_artist(stats: dict[str, int], max_size:int) -> (Path|None, int):
     prev_artist = None
     total = 0
     for artist in stats:
