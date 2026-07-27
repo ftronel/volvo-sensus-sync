@@ -339,7 +339,9 @@ def main():
         logger.error("Impossible to find a cut artist")
         sys.exit(-1)
     logger.info("Cutting at %s allows two compatible partitions (%d/%d)", artist_cut, cut_size,
-                mp3_total_size-cut_size)
+                size-cut_size)
+
+   
 
 if __name__ == "__main__":
     main()
