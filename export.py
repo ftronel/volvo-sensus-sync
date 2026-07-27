@@ -190,7 +190,7 @@ def mp3_total_size(export_dir: Path) -> int:
     return size
 
 @typechecked
-def stats_by_artist(export_dir: Path) -> dict[str, int]:
+def stats_by_artist(export_dir: Path) -> dict[Path, int]:
     stats = {}
     for artist in export_dir.glob("*"):
         size = mp3_total_size(artist)
