@@ -322,6 +322,7 @@ def main():
             progress.set_postfix(active=len(running), errors=len(errors))
             continue
         running[proc.pid] = current
+        progress.set_postfix(active=len(running), errors=len(errors))
         nb_procs += 1
 
     while ((len(conversions) > 0)  and (len(running) > 0) and not stop_requested)\
