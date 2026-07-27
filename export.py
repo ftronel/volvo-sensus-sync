@@ -230,6 +230,7 @@ def find_cut_artist(stats: dict[Path, int], max_size:int) -> (Path|None, int):
 
 
 def main():
+    global step
     """Main function of the program."""
     logger = logging.getLogger(__name__)
 
