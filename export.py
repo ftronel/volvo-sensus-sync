@@ -328,7 +328,16 @@ def main():
         # Wait for completion of a subprocess
         logger.debug("Waiting for conversion completion")
         try:
-            pid, status = os.wait()
+            # Check each running conversion process in turn (without blocking)
+            found = False
+            for pid in running.keys():
+                pid, status = os.waitpid(pid, os.WNOHANG)
+                if pid !=0:
+                    found = True
+                    break
+            if not found:
+                # Wait for next process to end up
+                pid, status = os.wait()
         except KeyboardInterrupt:
             logger.debug("Waiting for end of current conversions")
             continue
@@ -354,6 +363,7 @@ def main():
             progress.set_postfix(active=len(running), errors=len(errors))
 
     if stop_requested:
+        logger.info("Exiting as requested.")
         sys.exit(-1)
 
     step+=1
