@@ -326,11 +326,19 @@ def main():
     logger.info("Determining MP3 total size")
     size = mp3_total_size(export)
     logger.info("MP3 total size: %d", size)
+
+    if (args.max_dir_size * args.number_dirs < size):
+        logger.error("Impossible to store %d bytes into %d directories of %d bytes each.", size,
+                     args.number_dirs, args.max_dir_size)
+        sys.exit(-1)
+    ideal_size = int(ceil(size/args.number_dirs))
+    logger.info("We are seeking %d directories of %d bytes each.", args.number_dirs, ideal_size)
+
     stats = stats_by_artist(export)
     logger.info("Sorting by alphabetic order")
     stats = dict(sorted(stats.items()))
     logger.info("Searching for cut artist")
-    artist_cut,cut_size = find_cut_artist(stats, args.max_dir_size)
+    artist_cut,cut_size = find_cut_artist(stats, ideal_size)
     if artist_cut is None:
         logger.error("Impossible to find a cut artist")
         sys.exit(-1)
