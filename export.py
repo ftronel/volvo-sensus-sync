@@ -350,6 +350,9 @@ def main():
             running[proc.pid] = current
             progress.set_postfix(active=len(running), errors=len(errors))
 
+    if stop_requested:
+        sys.exit(-1)
+
     step+=1
     logger.info("Determining MP3 total size")
     size = mp3_total_size(export)
