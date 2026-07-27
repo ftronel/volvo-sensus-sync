@@ -10,6 +10,7 @@ import os
 import shutil
 import subprocess
 import signal
+from enum import IntEnum
 
 import coloredlogs
 from mutagen import File, MutagenError
@@ -23,12 +24,28 @@ AUDIO_EXTENSIONS = { ".mp3", ".flac", ".wav", ".ogg", ".m4a", ".aac", ".wma",
 
 INVALID = r'[<>:"/\\|?*\x00-\x1F]'
 
+class Step(IntEnum):
+    INIT = 0
+    ARGS_PROCESSING = 1
+    FILES_ENUMERATION = 2
+    METADATA_RETRIEVAL = 3
+    SORTING_BY_ARTIST = 4
+    EXPORT_STRUCTURE = 5
+    CONVERSION = 6
+    EXPORT_SIZE = 7
+    STATS = 8
+    SORTING_STATS = 9
+    SEARCH_CUTS = 10
 
 stop_requested = False
+step = INIT
 
 def sigint_handler(signum, frame):
     logger = logging.getLogger(__name__)
+    global step
     global stop_requested
+    if step != CONVERSION:
+        sys.exit(-1)
     stop_requested = True
     logger.warning("Please wait during graceful shutdown")
 
@@ -236,6 +253,7 @@ def main():
                         type=int, default=14500000000,\
                         help="Maximal size of each export directory")
 
+    step = ARGS_PROCESSING
     args = parser.parse_args()
     logger.info('Arguments: %s',args)
 
@@ -264,18 +282,23 @@ def main():
         logger.error('Export path must be a directory')
         sys.exit(-1)
 
+    step+=1
     files = get_audio_list(music)
     logger.info('Found %d files', len(files))
 
+    step+=1
     logger.info('Retrieving audio metadata')
     audios = get_metadata(files)
 
+    step+=1
     logger.info('Sorting files by artist')
     audios = dict(sorted(audios.items()))
 
+    step+=1
     logger.info("Creating export directory structure ...")
     conversions = determine_conversions(audios, export)
 
+    step+=1
     logger.info("There are %d files to convert.", len(conversions))
 
     # TODO: write a function
@@ -323,6 +346,7 @@ def main():
             running[proc.pid] = current
             progress.set_postfix(active=len(running), errors=len(errors))
 
+    step+=1
     logger.info("Determining MP3 total size")
     size = mp3_total_size(export)
     logger.info("MP3 total size: %d", size)
@@ -334,9 +358,14 @@ def main():
     ideal_size = int(ceil(size/args.number_dirs))
     logger.info("We are seeking %d directories of %d bytes each.", args.number_dirs, ideal_size)
 
+    step+=1
     stats = stats_by_artist(export)
+
     logger.info("Sorting by alphabetic order")
+    step+=1
     stats = dict(sorted(stats.items()))
+
+    step+=1
     logger.info("Searching for cut artist")
     artist_cut,cut_size = find_cut_artist(stats, ideal_size)
     if artist_cut is None:
