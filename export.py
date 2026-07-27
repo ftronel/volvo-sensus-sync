@@ -190,7 +190,8 @@ def convert(input_file: Path, output_file: Path):
             shutil.copy2(input_file, output_file)
         return None
 
-    cmd = [ "ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", str(input_file),
+    # "-loglevel", "error"
+    cmd = [ "ffmpeg", "-hide_banner", "-y", "-i", str(input_file),
                 "-codec:a", "libmp3lame", "-q:a", "4", str(output_file)]
     process = subprocess.Popen(cmd)
 
