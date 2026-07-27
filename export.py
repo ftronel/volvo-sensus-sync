@@ -190,10 +190,11 @@ def convert(input_file: Path, output_file: Path):
             shutil.copy2(input_file, output_file)
         return None
 
-    # "-loglevel", "error"
-    cmd = [ "ffmpeg", "-hide_banner", "-y", "-i", str(input_file),
+    cmd = [ "ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", str(input_file),
                 "-codec:a", "libmp3lame", "-q:a", "4", str(output_file)]
-    process = subprocess.Popen(cmd)
+    # ffmpeg processes are not in the same session as the Python script.
+    # Otherwise they would receive SIGINT during interrupt
+    process = subprocess.Popen(cmd, start_new_session=True)
 
     return process
 
