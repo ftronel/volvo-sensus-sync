@@ -174,7 +174,7 @@ def convert(input_file: Path, output_file: Path):
         return None
 
     cmd = [ "ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", str(input_file),
-                "-codec:a", "libmp3lame", "-q:a", "2", str(output_file)]
+                "-codec:a", "libmp3lame", "-q:a", "4", str(output_file)]
     process = subprocess.Popen(cmd)
 
     return process
@@ -265,7 +265,6 @@ def main():
         sys.exit(-1)
 
     files = get_audio_list(music)
-
     logger.info('Found %d files', len(files))
 
     logger.info('Retrieving audio metadata')
