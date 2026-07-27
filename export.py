@@ -330,8 +330,11 @@ def main():
         except KeyboardInterrupt:
             continue
         if  os.WEXITSTATUS(status) != 0:
-            logger.error('Conversion was not successuful for %s', running[pid])
-            errors.append(running[pid])
+            failed = running[pid]
+            logger.error('Conversion was not successuful for %s', failed)
+            failed_path = failed['to']
+            failed_path.unlink(missing_ok = True)
+            errors.append(failed)
         else:
             logger.debug('Conversion of %s was successful', running[pid])
         del running[pid]
