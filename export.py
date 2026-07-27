@@ -38,13 +38,13 @@ class Step(IntEnum):
     SEARCH_CUTS = 10
 
 stop_requested = False
-step = INIT
+step=Step.INIT
 
 def sigint_handler(signum, frame):
     logger = logging.getLogger(__name__)
     global step
     global stop_requested
-    if step != CONVERSION:
+    if step != Step.CONVERSION:
         sys.exit(-1)
     stop_requested = True
     logger.warning("Please wait during graceful shutdown")
@@ -253,7 +253,7 @@ def main():
                         type=int, default=14500000000,\
                         help="Maximal size of each export directory")
 
-    step = ARGS_PROCESSING
+    step+=1
     args = parser.parse_args()
     logger.info('Arguments: %s',args)
 
