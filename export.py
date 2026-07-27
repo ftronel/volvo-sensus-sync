@@ -328,6 +328,7 @@ def main():
         try:
             pid, status = os.wait()
         except KeyboardInterrupt:
+            logger.debug("Waiting for end of current conversions")
             continue
         if  os.WEXITSTATUS(status) != 0:
             failed = running[pid]
