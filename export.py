@@ -11,6 +11,7 @@ import shutil
 import subprocess
 import signal
 from enum import IntEnum
+from maths import ceil
 
 import coloredlogs
 from mutagen import File, MutagenError
@@ -330,8 +331,8 @@ def main():
         try:
             # Check each running conversion process in turn (without blocking)
             found = False
-            for pid in running.keys():
-                pid, status = os.waitpid(pid, os.WNOHANG)
+            for conv_pid in running:
+                pid, status = os.waitpid(conv_pid, os.WNOHANG)
                 if pid !=0:
                     found = True
                     break
