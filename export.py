@@ -11,7 +11,7 @@ import shutil
 import subprocess
 import signal
 from enum import IntEnum
-from maths import ceil
+from math import ceil
 
 import coloredlogs
 from mutagen import File, MutagenError
