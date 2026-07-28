@@ -192,7 +192,7 @@ def convert(input_file: Path, output_file: Path):
         return None
 
     cmd = [ "ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", str(input_file),
-                "-codec:a", "libmp3lame", "-q:a", "4", str(output_file)]
+                "-codec:a", "libmp3lame", "-q:a", "5", str(output_file)]
     # ffmpeg processes are not in the same session as the Python script.
     # Otherwise they would receive SIGINT during interrupt
     process = subprocess.Popen(cmd, start_new_session=True)
@@ -331,16 +331,8 @@ def main():
         # Wait for completion of a subprocess
         logger.debug("Waiting for conversion completion")
         try:
-            # Check each running conversion process in turn (without blocking)
-            found = False
-            for conv_pid in running:
-                pid, status = os.waitpid(conv_pid, os.WNOHANG)
-                if pid !=0:
-                    found = True
-                    break
-            if not found:
-                # Wait for next process to end up
-                pid, status = os.wait()
+            # Wait for next process to end up
+            pid, status = os.wait()
         except KeyboardInterrupt:
             logger.debug("Waiting for end of current conversions")
             continue
