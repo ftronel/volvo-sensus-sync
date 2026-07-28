@@ -38,8 +38,8 @@ class Step(IntEnum):
     SORTING_STATS = 9
     SEARCH_CUTS = 10
 
-stop_requested = False
-step=Step.INIT
+stop_requested = 0
+step = Step.INIT
 
 def sigint_handler(signum, frame):
     logger = logging.getLogger(__name__)
@@ -47,7 +47,7 @@ def sigint_handler(signum, frame):
     global stop_requested
     if step != Step.CONVERSION:
         sys.exit(-1)
-    stop_requested = True
+    stop_requested += 1
     logger.warning("Please wait during graceful shutdown")
 
 @typechecked
@@ -325,8 +325,8 @@ def main():
         progress.set_postfix(active=len(running), errors=len(errors))
         nb_procs += 1
 
-    while ((len(conversions) > 0)  and (len(running) > 0) and not stop_requested)\
-        or ((len(running) > 0) and stop_requested) :
+    while ((len(conversions) > 0)  and (len(running) > 0) and (stop_requested == 0)\
+        or ((len(running) > 0) and (stop_requested > 0))) :
         # Wait for completion of a subprocess
         logger.debug("Waiting for conversion completion")
         try:
@@ -354,7 +354,8 @@ def main():
         del running[pid]
         progress.update(1)
         progress.set_postfix(active=len(running), errors=len(errors))
-        while (len(running) != args.nb_threads) and (len(conversions) > 0) and not stop_requested:
+        while (len(running) != args.nb_threads) and (len(conversions) > 0) \
+                and (stop_requested == 0):
             current = conversions.pop()
             proc = convert(current['inode'], current['to'])
             if proc is None:
@@ -364,7 +365,7 @@ def main():
             running[proc.pid] = current
             progress.set_postfix(active=len(running), errors=len(errors))
 
-    if stop_requested:
+    if stop_requested > 0:
         logger.info("Exiting as requested.")
         sys.exit(-1)
 
