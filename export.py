@@ -231,6 +231,30 @@ def find_cut_artist(stats: dict[Path, int], max_size:int) -> (Path|None, int):
 
     return prev_artist, total
 
+@typechecked
+def find_cuts(stats: dict[Path, int], max_size:int, nb_parts: int) -> list[list[Path]] | None:
+    first_artist = None
+    res = []
+    part = []
+    for artist in stats:
+        size = stats[artist]
+        if total+size > max_size:
+            if len(part)>0:
+                total = 0
+                res.append(part)
+                part = []
+            else:
+                logger.warning("Impossible to include %s in a single directory.", artist)
+                return None
+        else:
+            total += size
+            part.append(artist)
+
+    if len(res) > nb_parts:
+        logger.warning("Solution requires more parts (%d) than allowed (%d)", len(res), nb_parts)
+        return None
+
+    return res
 
 def main():
     global step
@@ -383,16 +407,11 @@ def main():
     stats = dict(sorted(stats.items()))
 
     step+=1
-    logger.info("Searching for cut artist")
-    artist_cut,cut_size = find_cut_artist(stats, ideal_size)
-    if artist_cut is None:
-        logger.error("Impossible to find a cut artist")
+    logger.info("Computing cuts by artist")
+    parts = find_cuts(stats, ideal_size, args.number_dirs)
+    if parts == None:
+        logger.error("Impossible to find a solution")
         sys.exit(-1)
-    if size-cut_size > args.max_dir_size:
-        logger.error("Impossible to find a cut artist")
-        sys.exit(-1)
-    logger.info("Cutting at %s allows two compatible partitions (%d/%d)", artist_cut, cut_size,
-                size-cut_size)
 
    
 
