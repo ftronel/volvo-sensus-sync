@@ -321,6 +321,7 @@ def main():
             progress.update(1)
             progress.set_postfix(active=len(running), errors=len(errors))
             continue
+        current['process'] = proc
         running[proc.pid] = current
         progress.set_postfix(active=len(running), errors=len(errors))
         nb_procs += 1
@@ -351,7 +352,7 @@ def main():
             errors.append(failed)
         else:
             logger.debug('Conversion of %s was successful', running[pid])
-        del running[pid]
+        running.pop(pid)
         progress.update(1)
         progress.set_postfix(active=len(running), errors=len(errors))
         while (len(running) != args.nb_threads) and (len(conversions) > 0) \
@@ -362,6 +363,7 @@ def main():
                 progress.update(1)
                 progress.set_postfix(active=len(running), errors=len(errors))
                 continue
+            current['process'] = proc
             running[proc.pid] = current
             progress.set_postfix(active=len(running), errors=len(errors))
 
