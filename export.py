@@ -192,7 +192,7 @@ def convert(input_file: Path, output_file: Path, quality: int):
         return None
 
     cmd = [ "ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", str(input_file),
-                "-codec:a", "libmp3lame", "-q:a", quality, str(output_file)]
+                "-codec:a", "libmp3lame", "-q:a", f"{quality:d}", str(output_file)]
     # ffmpeg processes are not in the same session as the Python script.
     # Otherwise they would receive SIGINT during interrupt
     process = subprocess.Popen(cmd, start_new_session=True)
