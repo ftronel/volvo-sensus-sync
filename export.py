@@ -233,7 +233,8 @@ def find_cut_artist(stats: dict[Path, int], max_size:int) -> (Path|None, int):
 
 @typechecked
 def find_cuts(stats: dict[Path, int], max_size:int, nb_parts: int) -> list[list[Path]] | None:
-    first_artist = None
+    logger = logging.getLogger(__name__)
+
     res = []
     part = []
     total = 0
@@ -258,8 +259,9 @@ def find_cuts(stats: dict[Path, int], max_size:int, nb_parts: int) -> list[list[
     return res
 
 def main():
-    global step
     """Main function of the program."""
+
+    global step
     logger = logging.getLogger(__name__)
 
     # Install signal handler
@@ -315,7 +317,7 @@ def main():
         sys.exit(-1)
 
     export_all = export / "all"
-    export_all.mkdir(exists_ok=True)
+    export_all.mkdir(exist_ok=True)
 
     step+=1
     files = get_audio_list(music)
@@ -399,7 +401,7 @@ def main():
     size = mp3_total_size(export_all)
     logger.info("MP3 total size: %d", size)
 
-    if (args.max_dir_size * args.number_dirs < size):
+    if args.max_dir_size * args.number_dirs < size:
         logger.error("Impossible to store %d bytes into %d directories of %d bytes each.", size,
                      args.number_dirs, args.max_dir_size)
         sys.exit(-1)
@@ -416,7 +418,7 @@ def main():
     step+=1
     logger.info("Computing cuts by artist")
     parts = find_cuts(stats, ideal_size, args.number_dirs)
-    if parts == None:
+    if parts is None:
         logger.error("Impossible to find a solution")
         sys.exit(-1)
 
@@ -424,10 +426,10 @@ def main():
 
     part_num = 1
     for part in parts:
-        part_path = (export / f"{part_num}")
+        part_path = export / f"{part_num}"
         part_path.mkdir(exist_ok=True, parents=True)
         for artist in part:
-            artist_path = (part_path / f"{artist}")
+            artist_path = part_path / f"{artist}"
             artist_path.mkdir(exist_ok=True, parents=True)
             for inode in artist_path.rglob("*"):
                 rel_path = inode.relative_to(artist_path)
