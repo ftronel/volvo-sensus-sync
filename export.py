@@ -431,7 +431,8 @@ def main():
         for artist in part:
             for inode in artist.rglob("*"):
                 rel_path = inode.relative_to(export_all)
-                print(rel_path)
+                target_path = part_path / rel_path
+                print(target_path)
                 if inode.is_file():
                     pass
                 elif inode.is_dir():
