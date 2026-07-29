@@ -252,6 +252,8 @@ def find_cuts(stats: dict[Path, int], max_size:int, nb_parts: int) -> list[list[
             total += size
             part.append(artist)
 
+    parts.append(part)
+
     if len(res) > nb_parts:
         logger.warning("Solution requires more parts (%d) than allowed (%d)", len(res), nb_parts)
         return None
@@ -424,6 +426,8 @@ def main():
 
     progress.close()
 
+    #TODO: create a function
+    logger.info("Creating final partitions images")
     part_num = 1
     for part in parts:
         part_path = export / f"{part_num}"
