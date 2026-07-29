@@ -418,9 +418,17 @@ def main():
         sys.exit(-1)
 
     progress.close()
-    sys.exit(0)
 
-   
+    part_num = 1
+    for part in parts:
+        part_path = (export / f"{part_num}")
+        part_path.mkdir(exist_ok=True, parents=True)
+        for artist in part:
+            artist_path = (part_path / f"{artist}")
+            artist_path.mkdir(exist_ok=True, parents=True)
+            for inode in artist_path.rglob("*"):
+                rel_path = inode.relative_to(artist_path)
+                print(rel_path)
 
 if __name__ == "__main__":
     main()
