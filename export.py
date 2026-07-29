@@ -173,7 +173,7 @@ file: %s", dest_path)
 
     return res
 
-def convert(input_file: Path, output_file: Path):
+def convert(input_file: Path, output_file: Path, quality: int):
     logger = logging.getLogger(__name__)
 
     logger.debug("Converting %s into %s", input_file, output_file)
@@ -192,7 +192,7 @@ def convert(input_file: Path, output_file: Path):
         return None
 
     cmd = [ "ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", str(input_file),
-                "-codec:a", "libmp3lame", "-q:a", "5", str(output_file)]
+                "-codec:a", "libmp3lame", "-q:a", quality, str(output_file)]
     # ffmpeg processes are not in the same session as the Python script.
     # Otherwise they would receive SIGINT during interrupt
     process = subprocess.Popen(cmd, start_new_session=True)
@@ -281,6 +281,9 @@ def main():
     parser.add_argument("-S","--size", action='store', dest='max_dir_size',
                         type=int, default=14500000000,\
                         help="Maximal size of each export directory")
+    parser.add_argument("-Q","--quality", action='store', dest='quality',
+                        type=int, default=2,\
+                        help="Audio quality")
 
     step+=1
     args = parser.parse_args()
@@ -340,7 +343,7 @@ def main():
     logger.debug("Filling CPUs with %d conversions", args.nb_threads)
     while (nb_procs < args.nb_threads) and (len(conversions) >0):
         current = conversions.pop()
-        proc = convert(current['inode'], current['to'])
+        proc = convert(current['inode'], current['to'], args.quality)
         # If we draw an MP3 file we keep on trying to fill processor with conversion
         if proc is None:
             progress.update(1)
@@ -375,7 +378,7 @@ def main():
         while (len(running) != args.nb_threads) and (len(conversions) > 0) \
                 and (stop_requested == 0):
             current = conversions.pop()
-            proc = convert(current['inode'], current['to'])
+            proc = convert(current['inode'], current['to'], args.quality)
             if proc is None:
                 progress.update(1)
                 progress.set_postfix(active=len(running), errors=len(errors))
