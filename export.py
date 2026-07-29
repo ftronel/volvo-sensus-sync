@@ -429,11 +429,12 @@ def main():
         part_path = export / f"{part_num}"
         part_path.mkdir(exist_ok=True, parents=True)
         for artist in part:
-            artist_path = part_path / f"{artist}"
-            artist_path.mkdir(exist_ok=True, parents=True)
-            for inode in artist_path.rglob("*"):
-                rel_path = inode.relative_to(artist_path)
-                print(rel_path)
+            for inode in artist.rglob("*"):
+                print(inode)
+                if inode.is_file():
+                    pass
+                elif inode.is_dir():
+                    pass
         part_num += 1
 
 if __name__ == "__main__":
