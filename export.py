@@ -314,6 +314,9 @@ def main():
         logger.error('Export path must be a directory')
         sys.exit(-1)
 
+    export_all = export / "all"
+    export_all.mkdir(exists_ok=True)
+
     step+=1
     files = get_audio_list(music)
     logger.info('Found %d files', len(files))
@@ -328,7 +331,7 @@ def main():
 
     step+=1
     logger.info("Creating export directory structure ...")
-    conversions = determine_conversions(audios, export)
+    conversions = determine_conversions(audios, export_all)
 
     step+=1
     logger.info("There are %d files to convert.", len(conversions))
@@ -393,7 +396,7 @@ def main():
 
     step+=1
     logger.info("Determining MP3 total size")
-    size = mp3_total_size(export)
+    size = mp3_total_size(export_all)
     logger.info("MP3 total size: %d", size)
 
     if (args.max_dir_size * args.number_dirs < size):
@@ -404,7 +407,7 @@ def main():
     logger.info("We are seeking %d directories of %d bytes each.", args.number_dirs, ideal_size)
 
     step+=1
-    stats = stats_by_artist(export)
+    stats = stats_by_artist(export_all)
 
     logger.info("Sorting by alphabetic order")
     step+=1
