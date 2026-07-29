@@ -434,6 +434,7 @@ def main():
             for inode in artist_path.rglob("*"):
                 rel_path = inode.relative_to(artist_path)
                 print(rel_path)
+        part_num += 1
 
 if __name__ == "__main__":
     main()
