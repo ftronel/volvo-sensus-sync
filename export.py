@@ -252,7 +252,7 @@ def find_cuts(stats: dict[Path, int], max_size:int, nb_parts: int) -> list[list[
             total += size
             part.append(artist)
 
-    parts.append(part)
+    res.append(part)
 
     if len(res) > nb_parts:
         logger.warning("Solution requires more parts (%d) than allowed (%d)", len(res), nb_parts)
