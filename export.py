@@ -430,7 +430,8 @@ def main():
         part_path.mkdir(exist_ok=True, parents=True)
         for artist in part:
             for inode in artist.rglob("*"):
-                print(inode)
+                rel_path = inode.relative_to(export_all)
+                print(rel_path)
                 if inode.is_file():
                     pass
                 elif inode.is_dir():
