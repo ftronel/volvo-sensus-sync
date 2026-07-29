@@ -432,11 +432,10 @@ def main():
             for inode in artist.rglob("*"):
                 rel_path = inode.relative_to(export_all)
                 target_path = part_path / rel_path
-                print(target_path)
                 if inode.is_file():
                     pass
                 elif inode.is_dir():
-                    pass
+                    target_path.mkdir(exist_ok=True, parents=True)
         part_num += 1
 
 if __name__ == "__main__":
