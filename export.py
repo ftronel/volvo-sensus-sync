@@ -414,6 +414,9 @@ def main():
         logger.error("Impossible to find a solution")
         sys.exit(-1)
 
+    progress.close()
+    sys.exit(0)
+
    
 
 if __name__ == "__main__":
