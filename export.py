@@ -433,7 +433,7 @@ def main():
                 rel_path = inode.relative_to(export_all)
                 target_path = part_path / rel_path
                 if inode.is_file():
-                    pass
+                    artist.hardlink_to(target_path)
                 elif inode.is_dir():
                     target_path.mkdir(exist_ok=True, parents=True)
         part_num += 1
