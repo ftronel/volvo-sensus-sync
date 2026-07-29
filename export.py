@@ -440,7 +440,7 @@ def main():
                     if not target_path.exists():
                         target_path.hardlink_to(inode)
                     else:
-                        logger.error("Target file exists: %s", target_path)
+                        logger.warning("Target file exists: %s", target_path)
                 elif inode.is_dir():
                     target_path.mkdir(exist_ok=True, parents=True)
         part_num += 1
