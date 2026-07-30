@@ -12,6 +12,7 @@ import subprocess
 import signal
 from enum import IntEnum
 from math import ceil
+import unicodedata
 
 import coloredlogs
 from mutagen import File, MutagenError
@@ -55,6 +56,13 @@ def sanitize(name: str) -> str:
     name = re.sub(INVALID, "_", name)
     name = name.rstrip(" .")
     return name
+
+@typechecked
+def sort_artist(name: str) -> str:
+    name = unicodedata.normalize("NFKD", name)
+    name = "".join(c for c in name if not unicodedata.combining(c))
+    return name.casefold()
+
 
 @typechecked
 def get_audio_list(root: Path) -> list[Path]:
@@ -429,7 +437,7 @@ def main():
 
     logger.info("Sorting by alphabetic order")
     step+=1
-    stats = dict(sorted(stats.items()))
+    stats = dict(sorted(stats.items(), key=sort_artist))
 
     step+=1
     logger.info("Computing cuts by artist")
