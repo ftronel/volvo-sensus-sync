@@ -199,6 +199,62 @@ def convert(input_file: Path, output_file: Path, quality: int):
 
     return process
 
+def scheduler(conversions: list[dict[str, int|str|Path]], nb_threads: int, quality: int) -> None:
+    logger = logging.getLogger(__name__)
+
+    running = {}
+    errors = []
+    progress = tqdm(total=len(conversions), desc="Conversions", unit="Track")
+    progress.set_postfix(active=len(running), errors=len(errors))
+    # Fill up the buffer with nb_threads conversions
+    nb_procs = 0
+    logger.debug("Filling CPUs with %d conversions", args.nb_threads)
+    while (nb_procs < nb_threads) and (len(conversions) >0):
+        current = conversions.pop()
+        proc = convert(current['inode'], current['to'], quality)
+        # If we draw an MP3 file we keep on trying to fill processor with conversion
+        if proc is None:
+            progress.update(1)
+            progress.set_postfix(active=len(running), errors=len(errors))
+            continue
+        current['process'] = proc
+        running[proc.pid] = current
+        progress.set_postfix(active=len(running), errors=len(errors))
+        nb_procs += 1
+
+    while ((len(conversions) > 0)  and (len(running) > 0) and (STOP == 0)\
+        or ((len(running) > 0) and (STOP > 0))) :
+        # Wait for completion of a subprocess
+        logger.debug("Waiting for conversion completion")
+        try:
+            # Wait for next process to end up
+            pid, status = os.wait()
+        except KeyboardInterrupt:
+            logger.debug("Waiting for end of current conversions")
+            continue
+        if  os.WEXITSTATUS(status) != 0:
+            failed = running[pid]
+            logger.error('Conversion was not successuful for %s', failed)
+            failed_path = failed['to']
+            failed_path.unlink(missing_ok = True)
+            errors.append(failed)
+        else:
+            logger.debug('Conversion of %s was successful', running[pid])
+        running.pop(pid)
+        progress.update(1)
+        progress.set_postfix(active=len(running), errors=len(errors))
+        while (len(running) != nb_threads) and (len(conversions) > 0) \
+                and (STOP == 0):
+            current = conversions.pop()
+            proc = convert(current['inode'], current['to'], args.quality)
+            if proc is None:
+                progress.update(1)
+                progress.set_postfix(active=len(running), errors=len(errors))
+                continue
+            current['process'] = proc
+            running[proc.pid] = current
+            progress.set_postfix(active=len(running), errors=len(errors))
+
 @typechecked
 def mp3_total_size(export_dir: Path) -> int:
 
@@ -327,59 +383,7 @@ def main():
     step+=1
     logger.info("There are %d files to convert.", len(conversions))
 
-    # TODO: write a function
-    running = {}
-    errors = []
-    progress = tqdm(total=len(conversions), desc="Conversions", unit="Track")
-    progress.set_postfix(active=len(running), errors=len(errors))
-    # Fill up the buffer with nb_threads conversions
-    nb_procs = 0
-    logger.debug("Filling CPUs with %d conversions", args.nb_threads)
-    while (nb_procs < args.nb_threads) and (len(conversions) >0):
-        current = conversions.pop()
-        proc = convert(current['inode'], current['to'], args.quality)
-        # If we draw an MP3 file we keep on trying to fill processor with conversion
-        if proc is None:
-            progress.update(1)
-            progress.set_postfix(active=len(running), errors=len(errors))
-            continue
-        current['process'] = proc
-        running[proc.pid] = current
-        progress.set_postfix(active=len(running), errors=len(errors))
-        nb_procs += 1
-
-    while ((len(conversions) > 0)  and (len(running) > 0) and (STOP == 0)\
-        or ((len(running) > 0) and (STOP > 0))) :
-        # Wait for completion of a subprocess
-        logger.debug("Waiting for conversion completion")
-        try:
-            # Wait for next process to end up
-            pid, status = os.wait()
-        except KeyboardInterrupt:
-            logger.debug("Waiting for end of current conversions")
-            continue
-        if  os.WEXITSTATUS(status) != 0:
-            failed = running[pid]
-            logger.error('Conversion was not successuful for %s', failed)
-            failed_path = failed['to']
-            failed_path.unlink(missing_ok = True)
-            errors.append(failed)
-        else:
-            logger.debug('Conversion of %s was successful', running[pid])
-        running.pop(pid)
-        progress.update(1)
-        progress.set_postfix(active=len(running), errors=len(errors))
-        while (len(running) != args.nb_threads) and (len(conversions) > 0) \
-                and (STOP == 0):
-            current = conversions.pop()
-            proc = convert(current['inode'], current['to'], args.quality)
-            if proc is None:
-                progress.update(1)
-                progress.set_postfix(active=len(running), errors=len(errors))
-                continue
-            current['process'] = proc
-            running[proc.pid] = current
-            progress.set_postfix(active=len(running), errors=len(errors))
+    scheduler(conversions, args.nb_threads, args.quality)
 
     if STOP > 0:
         logger.info("Exiting as requested.")
