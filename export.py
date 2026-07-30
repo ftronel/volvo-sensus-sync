@@ -1,5 +1,17 @@
 #!/usr/bin/env python3
-"""Module providing a way to transcode a set of music files into standardize MP3 files."""
+"""export.py
+
+A command‑line utility that scans a directory tree for audio files, extracts
+metadata, and converts them to a uniform MP3 layout.  The resulting files are
+organized by artist and album, optionally split into several export directories
+to respect a maximum size per directory.
+
+The script supports parallel conversion using ``ffmpeg`` and graceful shutdown
+on SIGINT.  All public functions are type‑checked with :pypi:`typeguard` and
+documented with clear docstrings for easier maintenance and automatic API
+generation.
+"""
+
 
 import argparse
 import logging
@@ -27,6 +39,11 @@ AUDIO_EXTENSIONS = { ".mp3", ".flac", ".wav", ".ogg", ".m4a", ".aac", ".wma",
 INVALID = r'[<>:"/\\|?*\x00-\x1F]'
 
 class Step(IntEnum):
+    """Enumeration describing the current processing step.
+
+    Used mainly for graceful shutdown handling.
+    """
+
     INIT = 0
     ARGS_PROCESSING = 1
     FILES_ENUMERATION = 2
@@ -43,6 +60,12 @@ STOP = 0
 step = Step.INIT
 
 def sigint_handler(signum, frame):
+    """Handle SIGINT (Ctrl‑C).
+
+    If the conversion step is active the handler sets a global flag to stop
+    launching new jobs and allows the currently running subprocesses to finish
+    gracefully.  During any earlier step the program exits immediately.
+    """
     global STOP
 
     logger = logging.getLogger(__name__)
@@ -53,12 +76,34 @@ def sigint_handler(signum, frame):
 
 @typechecked
 def sanitize(name: str) -> str:
+    """Return a filesystem‑safe version of *name*.
+
+    The function replaces characters that are invalid on most platforms with an
+    underscore and strips trailing spaces or dots.
+
+    Args:
+        name: The original string (typically metadata such as artist or title).
+
+    Returns:
+        A sanitized string safe to use as a file or directory name.
+    """
     name = re.sub(INVALID, "_", name)
     name = name.rstrip(" .")
     return name
 
 @typechecked
 def sort_artist_path(path: Path) -> str:
+    """Return a case‑folded, diacritics‑stripped representation of *path*.
+
+    This helper is used to sort artist directories in a locale‑independent way.
+
+    Args:
+        path: A :class:`~pathlib.Path` instance whose ``name`` attribute is an
+            artist name.
+
+    Returns:
+        A normalized string suitable for alphabetical sorting.
+    """
     name = path.name
     name = unicodedata.normalize("NFKD", name)
     name = "".join(c for c in name if not unicodedata.combining(c))
@@ -66,6 +111,15 @@ def sort_artist_path(path: Path) -> str:
 
 @typechecked
 def get_audio_list(root: Path) -> list[Path]:
+    """Recursively collect all supported audio files under *root*.
+
+    Args:
+        root: Directory to search.
+
+    Returns:
+        A list of :class:`~pathlib.Path` objects pointing to files whose suffix
+        matches one of :data:`AUDIO_EXTENSIONS`.
+    """
     logger = logging.getLogger(__name__)
 
     res = []
@@ -80,6 +134,23 @@ def get_audio_list(root: Path) -> list[Path]:
 
 @typechecked
 def get_metadata(files: list[Path]) -> dict[str,dict[str,dict[int,list[dict[str, int|str|Path]]]]]:
+    """Extract relevant metadata from a list of audio files.
+
+    The function groups files by *artist -> album -> disc* and stores a list of
+    track dictionaries for each disc.  Each track dictionary contains the
+    original file path, sanitized title and numeric track information.
+
+    Args:
+        files: List of audio file paths returned by :func:`get_audio_list`.
+
+    Returns:
+        A nested dictionary structured as
+
+        ``{artist: {album: {disc_number: [track_dict, ...]}}}``
+
+        where *track_dict* contains the keys ``inode``, ``title``, ``disc``,
+        ``nb_discs`` and ``track``.
+    """
     logger = logging.getLogger(__name__)
 
     res = {}
@@ -127,6 +198,19 @@ def get_metadata(files: list[Path]) -> dict[str,dict[str,dict[int,list[dict[str,
 @typechecked
 def determine_conversions(audios: dict[str,dict[str,dict[int,list[dict[str, int|str|Path]]]]],
                           export_dir: Path) -> list[dict[str, int|str|Path]]:
+    """Create a conversion plan for all tracks.
+
+    The plan consists of a list of dictionaries, each containing the source file,
+    destination path and the metadata needed for conversion.
+
+    Args:
+        audios: Nested dictionary returned by :func:`get_metadata`.
+        export_dir: Base directory where the final MP3 hierarchy will be created.
+
+    Returns:
+        A list of dictionaries, each with at least the keys ``inode``, ``title``,
+        ``track`` and a newly added ``to`` (the destination :class:`Path`).
+    """
     logger = logging.getLogger(__name__)
     res = []
 
@@ -182,6 +266,20 @@ file: %s", dest_path)
     return res
 
 def convert(input_file: Path, output_file: Path, quality: int):
+    """Convert *input_file* to MP3 using ``ffmpeg`` at the requested *quality*.
+
+    If the source file is already an MP3 a hard‑link (or a copy if hard‑links are
+    not supported) is created instead of invoking ``ffmpeg``.
+
+    Args:
+        input_file: Path to the original audio file.
+        output_file: Desired MP3 destination (must not already exist).
+        quality: ``ffmpeg`` audio quality parameter (0=best … 9=worst).
+
+    Returns:
+        ``None`` if no conversion was necessary, otherwise a :class:`subprocess.Popen`
+        object representing the running ``ffmpeg`` process.
+    """
     logger = logging.getLogger(__name__)
 
     logger.debug("Converting %s into %s", input_file, output_file)
@@ -209,6 +307,18 @@ def convert(input_file: Path, output_file: Path, quality: int):
 
 @typechecked
 def scheduler(conversions: list[dict[str, int|str|Path]], nb_threads: int, quality: int) -> None:
+    """Run multiple conversions in parallel, respecting *nb_threads*.
+
+    A simple process pool is implemented manually to allow graceful handling of
+    SIGINT.  The function updates a tqdm progress bar and logs any conversion
+    failures.
+
+    Args:
+        conversions: List of conversion dictionaries returned by
+            :func:`determine_conversions`.
+        nb_threads: Maximum number of simultaneous ``ffmpeg`` processes.
+        quality: Desired MP3 quality (passed to :func:`convert`).
+    """
     logger = logging.getLogger(__name__)
 
     running = {}
@@ -266,6 +376,14 @@ def scheduler(conversions: list[dict[str, int|str|Path]], nb_threads: int, quali
 
 @typechecked
 def mp3_total_size(export_dir: Path) -> int:
+    """Calculate the total size (in bytes) of all MP3 files under *export_dir*.
+
+    Args:
+        export_dir: Root directory containing the exported MP3 hierarchy.
+
+    Returns:
+        Total size in bytes as an integer.
+    """
     size = 0
     for inode in export_dir.rglob("*"):
         if inode.is_file() and inode.suffix.lower() == '.mp3':
@@ -275,6 +393,14 @@ def mp3_total_size(export_dir: Path) -> int:
 
 @typechecked
 def stats_by_artist(export_dir: Path) -> dict[Path, int]:
+    """Return a mapping from each artist directory to its total MP3 size.
+
+    Args:
+        export_dir: The ``all`` directory where all converted files are stored.
+
+    Returns:
+        ``{artist_path: size_in_bytes}``
+    """
     stats = {}
     for artist in export_dir.glob("*"):
         size = mp3_total_size(artist)
@@ -284,6 +410,22 @@ def stats_by_artist(export_dir: Path) -> dict[Path, int]:
 
 @typechecked
 def find_cuts(stats: dict[Path, int], max_size:int, nb_parts: int) -> list[list[Path]] | None:
+    """Group artist directories into partitions that respect *max_size*.
+
+    A naïve first‑fit algorithm is used: artists are added to the current part
+    until adding the next one would exceed *max_size*.  If the resulting number
+    of parts exceeds *nb_parts* the function returns ``None``.
+
+    Args:
+        stats: Mapping from artist directory to its size (as returned by
+            :func:`stats_by_artist`).
+        max_size: Maximum allowed size per part (in bytes).
+        nb_parts: Desired maximum number of parts.
+
+    Returns:
+        A list of partitions (each a list of artist :class:`Path`s) or ``None`` if
+        a satisfactory partitioning is impossible.
+    """
     logger = logging.getLogger(__name__)
 
     res = []
@@ -313,6 +455,18 @@ def find_cuts(stats: dict[Path, int], max_size:int, nb_parts: int) -> list[list[
 
 @typechecked
 def create_partitions(export: Path, all_tracks: Path, partitions: list[list[Path]]):
+    """Populate the final export directory with hard‑linked copies of the tracks.
+
+    The function creates numbered sub‑directories (``1``, ``2`` …) under
+    *export* and mirrors the internal artist/albums hierarchy from *all_tracks*
+    using hard links to avoid duplicating data.
+
+    Args:
+        export: Root directory where the partitioned copies will be created.
+        all_tracks: Path to the ``all`` directory containing the complete MP3
+            collection.
+        partitions: List of partitions returned by :func:`find_cuts`.
+    """
     logger = logging.getLogger(__name__)
 
     part_num = 1
@@ -334,7 +488,11 @@ def create_partitions(export: Path, all_tracks: Path, partitions: list[list[Path
 
 
 def main():
-    """Main function of the program."""
+    """Entry point for the command‑line interface.
+
+    Parses arguments, validates input/output directories, orchestrates the
+    conversion pipeline and finally creates the requested partitions.
+    """
     global step
 
     logger = logging.getLogger(__name__)
