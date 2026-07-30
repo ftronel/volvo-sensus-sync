@@ -436,7 +436,7 @@ def main():
 
     logger.info("Sorting by alphabetic order")
     step+=1
-    stats = sorted(stats, key=sort_artist_path)
+    stats = dict(sorted(stats.items(), key=lambda item: sort_artist_path(item[0])))
 
     step+=1
     logger.info("Computing cuts by artist")
