@@ -219,19 +219,6 @@ def stats_by_artist(export_dir: Path) -> dict[Path, int]:
     return stats
 
 @typechecked
-def find_cut_artist(stats: dict[Path, int], max_size:int) -> (Path|None, int):
-    prev_artist = None
-    total = 0
-    for artist in stats:
-        size = stats[artist]
-        if total+size > max_size:
-            return prev_artist, total
-        total += size
-        prev_artist = artist
-
-    return prev_artist, total
-
-@typechecked
 def find_cuts(stats: dict[Path, int], max_size:int, nb_parts: int) -> list[list[Path]] | None:
     logger = logging.getLogger(__name__)
 
