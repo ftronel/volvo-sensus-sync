@@ -38,16 +38,16 @@ class Step(IntEnum):
     SORTING_STATS = 9
     SEARCH_CUTS = 10
 
-stop_requested = 0
+STOP = 0
 step = Step.INIT
 
 def sigint_handler(signum, frame):
+    global STOP
+
     logger = logging.getLogger(__name__)
-    global step
-    global stop_requested
     if step != Step.CONVERSION:
         sys.exit(-1)
-    stop_requested += 1
+    STOP += 1
     logger.warning("Please wait during graceful shutdown")
 
 @typechecked
@@ -262,8 +262,8 @@ def find_cuts(stats: dict[Path, int], max_size:int, nb_parts: int) -> list[list[
 
 def main():
     """Main function of the program."""
-
     global step
+
     logger = logging.getLogger(__name__)
 
     # Install signal handler
@@ -361,8 +361,8 @@ def main():
         progress.set_postfix(active=len(running), errors=len(errors))
         nb_procs += 1
 
-    while ((len(conversions) > 0)  and (len(running) > 0) and (stop_requested == 0)\
-        or ((len(running) > 0) and (stop_requested > 0))) :
+    while ((len(conversions) > 0)  and (len(running) > 0) and (STOP == 0)\
+        or ((len(running) > 0) and (STOP > 0))) :
         # Wait for completion of a subprocess
         logger.debug("Waiting for conversion completion")
         try:
@@ -383,7 +383,7 @@ def main():
         progress.update(1)
         progress.set_postfix(active=len(running), errors=len(errors))
         while (len(running) != args.nb_threads) and (len(conversions) > 0) \
-                and (stop_requested == 0):
+                and (STOP == 0):
             current = conversions.pop()
             proc = convert(current['inode'], current['to'], args.quality)
             if proc is None:
@@ -394,7 +394,7 @@ def main():
             running[proc.pid] = current
             progress.set_postfix(active=len(running), errors=len(errors))
 
-    if stop_requested > 0:
+    if STOP > 0:
         logger.info("Exiting as requested.")
         sys.exit(-1)
 
