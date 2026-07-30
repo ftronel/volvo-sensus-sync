@@ -266,7 +266,6 @@ def scheduler(conversions: list[dict[str, int|str|Path]], nb_threads: int, quali
 
 @typechecked
 def mp3_total_size(export_dir: Path) -> int:
-
     size = 0
     for inode in export_dir.rglob("*"):
         if inode.is_file() and inode.suffix.lower() == '.mp3':
@@ -437,7 +436,7 @@ def main():
 
     logger.info("Sorting by alphabetic order")
     step+=1
-    stats = dict(sorted(stats.items(), key=sort_artist_path))
+    stats = sorted(stats, key=sort_artist_path)
 
     step+=1
     logger.info("Computing cuts by artist")
