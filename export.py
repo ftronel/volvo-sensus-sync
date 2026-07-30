@@ -199,6 +199,7 @@ def convert(input_file: Path, output_file: Path, quality: int):
 
     return process
 
+@typechecked
 def scheduler(conversions: list[dict[str, int|str|Path]], nb_threads: int, quality: int) -> None:
     logger = logging.getLogger(__name__)
 
@@ -302,6 +303,28 @@ def find_cuts(stats: dict[Path, int], max_size:int, nb_parts: int) -> list[list[
         return None
 
     return res
+
+@typechecked
+def create_partitions(export: Path, all_tracks: Path, partitions: list[list[Path]]):
+    logger = logging.getLogger(__name__)
+
+    part_num = 1
+    for part in partitions:
+        part_path = export / f"{part_num}"
+        part_path.mkdir(exist_ok=True, parents=True)
+        for artist in part:
+            for inode in artist.rglob("*"):
+                rel_path = inode.relative_to(all_tracks)
+                target_path = part_path / rel_path
+                if inode.is_file():
+                    if not target_path.exists():
+                        target_path.hardlink_to(inode)
+                    else:
+                        logger.warning("Target file exists: %s", target_path)
+                elif inode.is_dir():
+                    target_path.mkdir(exist_ok=True, parents=True)
+        part_num += 1
+
 
 def main():
     """Main function of the program."""
@@ -415,24 +438,8 @@ def main():
         logger.error("Impossible to find a solution")
         sys.exit(-1)
 
-    #TODO: create a function
     logger.info("Creating final partitions images")
-    part_num = 1
-    for part in parts:
-        part_path = export / f"{part_num}"
-        part_path.mkdir(exist_ok=True, parents=True)
-        for artist in part:
-            for inode in artist.rglob("*"):
-                rel_path = inode.relative_to(export_all)
-                target_path = part_path / rel_path
-                if inode.is_file():
-                    if not target_path.exists():
-                        target_path.hardlink_to(inode)
-                    else:
-                        logger.warning("Target file exists: %s", target_path)
-                elif inode.is_dir():
-                    target_path.mkdir(exist_ok=True, parents=True)
-        part_num += 1
+    create_partitions(export, export_all, parts)
 
 if __name__ == "__main__":
     main()
