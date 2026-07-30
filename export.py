@@ -58,11 +58,11 @@ def sanitize(name: str) -> str:
     return name
 
 @typechecked
-def sort_artist(name: str) -> str:
+def sort_artist_path(path: Path) -> str:
+    name = path.name
     name = unicodedata.normalize("NFKD", name)
     name = "".join(c for c in name if not unicodedata.combining(c))
     return name.casefold()
-
 
 @typechecked
 def get_audio_list(root: Path) -> list[Path]:
