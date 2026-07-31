@@ -56,6 +56,8 @@ class Step(IntEnum):
     SORTING_STATS = 9
     SEARCH_CUTS = 10
 
+
+
 STOP = 0
 step = Step.INIT
 
@@ -265,7 +267,7 @@ file: %s", dest_path)
 
     return res
 
-def convert(input_file: Path, output_file: Path, quality: int):
+def convert(input_file: Path, output_file: Path, bitrate: int):
     """Convert *input_file* to MP3 using ``ffmpeg`` at the requested *quality*.
 
     If the source file is already an MP3 a hard‑link (or a copy if hard‑links are
@@ -274,7 +276,7 @@ def convert(input_file: Path, output_file: Path, quality: int):
     Args:
         input_file: Path to the original audio file.
         output_file: Desired MP3 destination (must not already exist).
-        quality: ``ffmpeg`` audio quality parameter (0=best … 9=worst).
+        bitrate: MP3 bitrate.
 
     Returns:
         ``None`` if no conversion was necessary, otherwise a :class:`subprocess.Popen`
@@ -298,7 +300,7 @@ def convert(input_file: Path, output_file: Path, quality: int):
         return None
 
     cmd = [ "ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", str(input_file),
-                "-codec:a", "libmp3lame", "-q:a", f"{quality:d}", str(output_file)]
+                "-codec:a", "libmp3lame", "-b:a", f"{bitrate:d}k", str(output_file)]
     # ffmpeg processes are not in the same session as the Python script.
     # Otherwise they would receive SIGINT during interrupt
     process = subprocess.Popen(cmd, start_new_session=True)
@@ -306,7 +308,7 @@ def convert(input_file: Path, output_file: Path, quality: int):
     return process
 
 @typechecked
-def scheduler(conversions: list[dict[str, int|str|Path]], nb_threads: int, quality: int) -> None:
+def scheduler(conversions: list[dict[str, int|str|Path]], nb_threads: int, bitrate: int) -> None:
     """Run multiple conversions in parallel, respecting *nb_threads*.
 
     A simple process pool is implemented manually to allow graceful handling of
@@ -317,7 +319,7 @@ def scheduler(conversions: list[dict[str, int|str|Path]], nb_threads: int, quali
         conversions: List of conversion dictionaries returned by
             :func:`determine_conversions`.
         nb_threads: Maximum number of simultaneous ``ffmpeg`` processes.
-        quality: Desired MP3 quality (passed to :func:`convert`).
+        bitrate: Desired MP3 bitrate (passed to :func:`convert`).
     """
     logger = logging.getLogger(__name__)
 
@@ -330,7 +332,7 @@ def scheduler(conversions: list[dict[str, int|str|Path]], nb_threads: int, quali
         logger.debug("Filling CPUs with %d conversions", nb_threads)
         while (nb_procs < nb_threads) and (len(conversions) >0):
             current = conversions.pop()
-            proc = convert(current['inode'], current['to'], quality)
+            proc = convert(current['inode'], current['to'], bitrate)
             # If we draw an MP3 file we keep on trying to fill processor with conversion
             if proc is None:
                 progress.update(1)
@@ -365,7 +367,7 @@ def scheduler(conversions: list[dict[str, int|str|Path]], nb_threads: int, quali
             while (len(running) != nb_threads) and (len(conversions) > 0) \
                     and (STOP == 0):
                 current = conversions.pop()
-                proc = convert(current['inode'], current['to'], quality)
+                proc = convert(current['inode'], current['to'], bitrate)
                 if proc is None:
                     progress.update(1)
                     progress.set_postfix(active=len(running), errors=len(errors))
@@ -516,9 +518,9 @@ def main():
     parser.add_argument("-S","--size", action='store', dest='max_dir_size',
                         type=int, default=14500000000,\
                         help="Maximal size of each export directory")
-    parser.add_argument("-Q","--quality", action='store', dest='quality',
-                        type=int, default=2,\
-                        help="Audio quality")
+    parser.add_argument("-B","--bitrate", action='store', dest='bitrate',
+                        type=int, default=128,\
+                        help="MP3 bitrate")
 
     step+=1
     args = parser.parse_args()
@@ -571,7 +573,7 @@ def main():
     step+=1
     logger.info("There are %d files to convert.", len(conversions))
 
-    scheduler(conversions, args.nb_threads, args.quality)
+    scheduler(conversions, args.nb_threads, args.bitrate)
 
     if STOP > 0:
         logger.info("Exiting as requested.")
