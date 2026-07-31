@@ -25,6 +25,7 @@ import signal
 from enum import IntEnum
 from math import ceil
 import unicodedata
+from dataclasses import dataclass
 
 import coloredlogs
 from mutagen import File, MutagenError
@@ -56,6 +57,18 @@ class Step(IntEnum):
     SORTING_STATS = 9
     SEARCH_CUTS = 10
 
+
+@dataclass(slots=True)
+class Track:
+    source: Path
+    artist: str
+    album: str
+    title: str
+    dest: Path | None = None
+    track: int | None = None
+    disc_id: int | None = None
+    disc_total: int | None = None
+    process: subprocess.Popen | None = None
 
 
 STOP = 0
@@ -135,7 +148,7 @@ def get_audio_list(root: Path) -> list[Path]:
     return res
 
 @typechecked
-def get_metadata(files: list[Path]) -> dict[str,dict[str,dict[int,list[dict[str, int|str|Path]]]]]:
+def get_metadata(files: list[Path]) -> dict[str,dict[str,dict[int,list[Track]]]]:
     """Extract relevant metadata from a list of audio files.
 
     The function groups files by *artist -> album -> disc* and stores a list of
@@ -192,14 +205,17 @@ def get_metadata(files: list[Path]) -> dict[str,dict[str,dict[int,list[dict[str,
         if disc_id not in discs:
             discs[disc_id] = []
         tracks = discs[disc_id]
-        tracks.append({'inode': inode, 'title': title, 'disc': disc_id, 'nb_discs': nb_discs,
-                       'track': track})
+        track = Track(source=inode, artist=artist, album=album, disc_id=disc_id,
+                      disc_total=nb_discs, track=track, title=title)
+        # tracks.append({'inode': inode, 'title': title, 'disc': disc_id, 'nb_discs': nb_discs,
+        #               'track': track})
+        tracks.append(track)
 
     return res
 
 @typechecked
-def determine_conversions(audios: dict[str,dict[str,dict[int,list[dict[str, int|str|Path]]]]],
-                          export_dir: Path) -> list[dict[str, int|str|Path]]:
+def determine_conversions(audios: dict[str,dict[str,dict[int,list[Track]]]],
+                          export_dir: Path) -> list[Track]:
     """Create a conversion plan for all tracks.
 
     The plan consists of a list of dictionaries, each containing the source file,
@@ -262,12 +278,13 @@ def determine_conversions(audios: dict[str,dict[str,dict[int,list[dict[str, int|
 file: %s", dest_path)
                             continue
                     else:
-                        track['to'] = dest
+                        track.dest = dest
                         res.append(track)
 
     return res
 
-def convert(input_file: Path, output_file: Path, bitrate: int):
+@typechecked
+def convert(input_file: Path, output_file: Path, bitrate: int) -> subprocess.Popen:
     """Convert *input_file* to MP3 using ``ffmpeg`` at the requested *quality*.
 
     If the source file is already an MP3 a hard‑link (or a copy if hard‑links are
@@ -308,7 +325,7 @@ def convert(input_file: Path, output_file: Path, bitrate: int):
     return process
 
 @typechecked
-def scheduler(conversions: list[dict[str, int|str|Path]], nb_threads: int, bitrate: int) -> None:
+def scheduler(conversions: list[Track], nb_threads: int, bitrate: int) -> None:
     """Run multiple conversions in parallel, respecting *nb_threads*.
 
     A simple process pool is implemented manually to allow graceful handling of
@@ -367,12 +384,12 @@ def scheduler(conversions: list[dict[str, int|str|Path]], nb_threads: int, bitra
             while (len(running) != nb_threads) and (len(conversions) > 0) \
                     and (STOP == 0):
                 current = conversions.pop()
-                proc = convert(current['inode'], current['to'], bitrate)
+                proc = convert(current.source, current.dest, bitrate)
                 if proc is None:
                     progress.update(1)
                     progress.set_postfix(active=len(running), errors=len(errors))
                     continue
-                current['process'] = proc
+                current.process = proc
                 running[proc.pid] = current
                 progress.set_postfix(active=len(running), errors=len(errors))
 
