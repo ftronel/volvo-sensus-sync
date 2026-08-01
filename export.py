@@ -535,6 +535,8 @@ def main():
     parser.add_argument("-S","--size", action='store', dest='max_dir_size',
                         type=int, default=14500000000,\
                         help="Maximal size of each export directory")
+    parser.add_argument("-F","--fullsize", action='store_true', dest='full_size', 
+                        help="Fill first partitions to their maximal size.")
     parser.add_argument("-B","--bitrate", action='store', dest='bitrate',
                         type=int, default=128,\
                         help="MP3 bitrate")
@@ -605,7 +607,11 @@ def main():
         logger.error("Impossible to store %d bytes into %d directories of %d bytes each.", size,
                      args.number_dirs, args.max_dir_size)
         sys.exit(-1)
-    ideal_size = int(ceil(size/args.number_dirs))
+
+    if args.full_size:
+        ideal_size = args.max_dir_size
+    else:
+        ideal_size = int(ceil(size/args.number_dirs))
     logger.info("We are seeking %d directories of %d bytes each.", args.number_dirs, ideal_size)
 
     step+=1
