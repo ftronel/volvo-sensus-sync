@@ -57,6 +57,10 @@ class Step(IntEnum):
     SORTING_STATS = 9
     SEARCH_CUTS = 10
 
+@dataclass(slots=True)
+class ConversionProcess:
+    ffmpeg: subprocess.Popen
+    lame: subprocess.Popen
 
 @dataclass(slots=True)
 class Track:
@@ -68,8 +72,7 @@ class Track:
     track: int | None = None
     disc_id: int | None = None
     disc_total: int | None = None
-    process: subprocess.Popen | None = None
-
+    process: ConversionProcess | None = None
 
 STOP = 0
 step = Step.INIT
@@ -294,7 +297,7 @@ file: %s", dest_path)
     return res
 
 @typechecked
-def convert(input_file: Path, output_file: Path, bitrate: int) -> subprocess.Popen:
+def convert(input_file: Path, output_file: Path, bitrate: int) -> ConversionProcess:
     """Convert *input_file* to MP3 using ``ffmpeg`` at the requested *quality*.
 
     If the source file is already an MP3 a hard‑link (or a copy if hard‑links are
@@ -326,13 +329,29 @@ def convert(input_file: Path, output_file: Path, bitrate: int) -> subprocess.Pop
             shutil.copy2(input_file, output_file)
         return None
 
-    cmd = [ "ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", str(input_file),
-                "-codec:a", "libmp3lame", "-b:a", f"{bitrate:d}k", str(output_file)]
-    # ffmpeg processes are not in the same session as the Python script.
-    # Otherwise they would receive SIGINT during interrupt
-    process = subprocess.Popen(cmd, start_new_session=True)
+    ffmpeg_cmd = [ "ffmpeg", "-hide_banner", "-loglevel", "error", "-nostdin", 
+                  "-i", str(input_file), "-f", "wav", "-" ]
 
-    return process
+    lame_cmd = [ "lame", "-b", f"{bitrate:d}", "-", str(output_file) ]
+
+    ffmpeg = subprocess.Popen( ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                              stdin=subprocess.DEVNULL, start_new_session=True)
+
+    lame = subprocess.Popen( lame_cmd, stdin=ffmpeg.stdout, stdout=subprocess.DEVNULL,
+                            stderr=subprocess.DEVNULL, start_new_session=True)
+
+    ffmpeg.stdout.close()
+
+    return ConversionProcess(ffmpeg=ffmpeg, lame=lame)
+
+    # # TODO: add a second process running lame and wait for two processes instead of one !
+    # cmd = [ "ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", str(input_file),
+    #             "-codec:a", "libmp3lame", "-b:a", f"{bitrate:d}k", str(output_file)]
+    # # ffmpeg processes are not in the same session as the Python script.
+    # # Otherwise they would receive SIGINT during interrupt
+    # process = subprocess.Popen(cmd, start_new_session=True)
+    # 
+    # return process
 
 @typechecked
 def scheduler(conversions: list[Track], nb_threads: int, bitrate: int) -> None:
@@ -359,14 +378,14 @@ def scheduler(conversions: list[Track], nb_threads: int, bitrate: int) -> None:
         logger.debug("Filling CPUs with %d conversions", nb_threads)
         while (nb_procs < nb_threads) and (len(conversions) >0):
             current = conversions.pop()
-            proc = convert(current['inode'], current['to'], bitrate)
+            proc = convert(current.source, current.dest, bitrate)
             # If we draw an MP3 file we keep on trying to fill processor with conversion
             if proc is None:
                 progress.update(1)
                 progress.set_postfix(active=len(running), errors=len(errors))
                 continue
-            current['process'] = proc
-            running[proc.pid] = current
+            current.process = proc
+            running[proc.lame.pid] = current
             progress.set_postfix(active=len(running), errors=len(errors))
             nb_procs += 1
 
@@ -380,10 +399,10 @@ def scheduler(conversions: list[Track], nb_threads: int, bitrate: int) -> None:
             except KeyboardInterrupt:
                 logger.debug("Waiting for end of current conversions")
                 continue
-            if  os.WEXITSTATUS(status) != 0:
+            if os.WEXITSTATUS(status) != 0:
                 failed = running[pid]
                 logger.error('Conversion was not successuful for %s', failed)
-                failed_path = failed['to']
+                failed_path = failed.dest
                 failed_path.unlink(missing_ok = True)
                 errors.append(failed)
             else:
@@ -400,7 +419,7 @@ def scheduler(conversions: list[Track], nb_threads: int, bitrate: int) -> None:
                     progress.set_postfix(active=len(running), errors=len(errors))
                     continue
                 current.process = proc
-                running[proc.pid] = current
+                running[proc.lame.pid] = current
                 progress.set_postfix(active=len(running), errors=len(errors))
 
 @typechecked
