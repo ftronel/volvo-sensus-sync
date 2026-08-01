@@ -268,8 +268,8 @@ def determine_conversions(audios: dict[str,dict[str,dict[int,list[Track]]]],
                     dest_path = path2
                 tracks = discs[disc]
                 for track in tracks:
-                    logger.debug("Considering title: %s", track['title'])
-                    final_path = f"{dest_path}/{track['track']:02d}-{track['title']}.mp3"
+                    logger.debug("Considering title: %s", track.title)
+                    final_path = f"{dest_path}/{track['track']:02d}-{track.title}.mp3"
                     logger.debug("Testing if file %s exists", final_path)
                     dest = Path(final_path)
                     if dest.exists():
