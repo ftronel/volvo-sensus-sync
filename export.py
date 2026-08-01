@@ -12,7 +12,7 @@ documented with clear docstrings for easier maintenance and automatic API
 generation.
 """
 
-
+from shutil import which
 import argparse
 import logging
 from pathlib import Path
@@ -88,6 +88,16 @@ def sigint_handler(signum, frame):
         sys.exit(-1)
     STOP += 1
     logger.warning("Please wait during graceful shutdown")
+
+@typechecked
+def check_binaries() -> None:
+    logger = logging.getLogger(__name__)
+
+    binaries = [ 'ffmpeg', 'lame']
+    for binary in binaries:
+        if which(binary) is None:
+            logger.error("%s is not installed.", binary)
+            sys.exit(1)
 
 @typechecked
 def sanitize(name: str) -> str:
@@ -505,7 +515,6 @@ def create_partitions(export: Path, all_tracks: Path, partitions: list[list[Path
                     target_path.mkdir(exist_ok=True, parents=True)
         part_num += 1
 
-
 def main():
     """Entry point for the command‑line interface.
 
@@ -553,6 +562,8 @@ def main():
         args.nb_threads = os.cpu_count() or 1
 
     logger.debug('Arguments: %s',args)
+
+    check_binaries()
 
     music = Path(args.input_dir)
     if not music.exists():
