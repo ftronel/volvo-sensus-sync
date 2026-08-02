@@ -30,7 +30,7 @@ from dataclasses import dataclass
 import coloredlogs
 from mutagen import File, MutagenError
 from mutagen.mp3 import MP3
-from mutagen.easyid3 import EasyID3
+from mutagen.id3 import ID3, TIT2, TALB, TPE1
 from tqdm import tqdm
 from typeguard import typechecked
 
@@ -85,11 +85,17 @@ class Track:
         return hash(self.source)
 
     def write_tags(self):
-        audio = EasyID3(self.dest)
-        audio["artist"] = self.artist
-        audio["album"] = self.album
-        audio["title"] = self.title
-        audio.save(v2_version=3)
+        try:
+            tags = ID3(self.dest)
+        except ID3NoHeaderError:
+            tags = ID3()
+
+        tags.add(TIT2(encoding=3, text=self.title))
+        tags.add(TALB(encoding=3, text=self.album))
+        tags.add(TPE1(encoding=3, text=self.artist))
+        tags.add(TRCK(encoding=3, text=f"{self.track_number}"))
+        tags.add(TPOS(encoding=3, text=f"{self.disc_id}/{self.disc_total}"))
+        tags.save(self.dest, v2_version=3)
 
 STOP = 0
 step = Step.INIT
