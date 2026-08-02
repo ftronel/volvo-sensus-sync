@@ -430,6 +430,7 @@ def scheduler(conversions: list[Track], nb_threads: int, bitrate: int) -> None:
                 failed_path = track.dest
                 failed_path.unlink(missing_ok = True)
                 errors.add(track)
+            logger.debug("Track status: %s", track)
             if processes.finished:
                 if processes.successful:
                     active_tracks.remove(track)
