@@ -407,8 +407,8 @@ def scheduler(conversions: list[Track], nb_threads: int, bitrate: int) -> None:
                 logger.debug("Waiting for end of current conversions")
                 continue
             status = os.WEXITSTATUS(status)
-            conv = running[pid]
-            processes = conv.processes
+            track = running[pid]
+            processes = track.processes
             ffmpeg_pid = processes.ffmpeg.pid
             lame_pid = processes.ffmpeg.pid
             if pid == ffmpeg_pid:
@@ -421,14 +421,15 @@ def scheduler(conversions: list[Track], nb_threads: int, bitrate: int) -> None:
             if processes.finished:
                 processes.successful == processes.ffmpeg_successful and processes.lame_successful
             if status != 0:
-                logger.error('Conversion was not successful for %s', conv)
-                failed_path = conv.dest
+                logger.error('Conversion was not successful for %s', track)
+                failed_path = track.dest
                 failed_path.unlink(missing_ok = True)
-                errors.add(conv)
+                errors.add(track)
             if processes.finished:
                 if processes.successful:
                     progress.update(1)
-                    logger.debug('Conversion of %s was successful', conv)
+                    track.write_tags()
+                    logger.debug('Conversion of %s was successful', track)
                 running.pop(pid)
             progress.set_postfix(active=len(running), errors=len(errors))
 
