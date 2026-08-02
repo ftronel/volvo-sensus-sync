@@ -76,7 +76,8 @@ class Track:
     album: str
     title: str
     dest: Path | None = None
-    track: int | None = None
+    track_id: int | None = None
+    track_total: int | None = None
     disc_id: int | None = None
     disc_total: int | None = None
     processes: ConversionProcess | None = None
@@ -93,7 +94,7 @@ class Track:
         tags.add(TIT2(encoding=3, text=self.title))
         tags.add(TALB(encoding=3, text=self.album))
         tags.add(TPE1(encoding=3, text=self.artist))
-        tags.add(TRCK(encoding=3, text=f"{self.track}"))
+        tags.add(TRCK(encoding=3, text=f"{self.track_id}/{self.track_total}"))
         tags.add(TPOS(encoding=3, text=f"{self.disc_id}/{self.disc_total}"))
         tags.save(self.dest, v2_version=3)
 
@@ -224,12 +225,12 @@ def get_metadata(files: list[Path]) -> dict[str,dict[str,dict[int,list[Track]]]]
         else:
             disc_id = int(disc)
             nb_discs = 1
-        track = audio.get("tracknumber", ["0"])[0]
-        try:
-            track = int(track.split("/")[0])
-        except (ValueError,TypeError):
-            logger.error("Bad track number: '%s' for inode %s", track, inode)
-            sys.exit(-1)
+        tracknumber = audio.get("tracknumber", ["0"])[0]
+        if "/" in tracknumber:
+            track_number, track_total = map(int, tracknumber.split("/", 1))
+        else:
+            track_number = int(tracknumber)
+            track_total = 1
         if artist not in res:
             res[artist] = {}
         albums = res[artist]
@@ -242,9 +243,7 @@ def get_metadata(files: list[Path]) -> dict[str,dict[str,dict[int,list[Track]]]]
             discs[disc_id] = []
         tracks = discs[disc_id]
         track = Track(source=inode, artist=artist, album=album, disc_id=disc_id,
-                      disc_total=nb_discs, track=track, title=title)
-        # tracks.append({'inode': inode, 'title': title, 'disc': disc_id, 'nb_discs': nb_discs,
-        #               'track': track})
+                      disc_total=nb_discs, track_id=track_id, track_total=track_total title=title)
         tracks.append(track)
 
     return res
