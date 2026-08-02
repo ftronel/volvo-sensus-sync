@@ -415,9 +415,11 @@ def scheduler(conversions: list[Track], nb_threads: int, bitrate: int) -> None:
             ffmpeg_pid = processes.ffmpeg.pid
             lame_pid = processes.lame.pid
             if pid == ffmpeg_pid:
+                logger.debug('ffmpeg finished for %s', track)
                 processes.ffmpeg_finished = True
                 processes.ffmpeg_successful = status == 0
             if pid == lame_pid:
+                logger.debug('lame finished for %s', track)
                 processes.lame_finished = True
                 processes.lame_successful = status == 0
             processes.finished = processes.ffmpeg_finished and processes.lame_finished
