@@ -422,12 +422,12 @@ def scheduler(conversions: list[Track], nb_threads: int, bitrate: int) -> None:
                 conv.successful == conv.ffmpeg_successful and conv.lame_successful
                 progress.update(1)
             if status != 0:
-                logger.error('Conversion was not successuful for %s', conv)
+                logger.error('Conversion was not successful for %s', conv)
                 failed_path = conv.dest
                 failed_path.unlink(missing_ok = True)
                 errors.add(conv)
             if conv.finished:
-                if conv.successuful:
+                if conv.successful:
                     logger.debug('Conversion of %s was successful', running[pid])
                 running.pop(pid)
             progress.set_postfix(active=len(running), errors=len(errors))
