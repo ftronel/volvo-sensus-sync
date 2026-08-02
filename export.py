@@ -93,7 +93,7 @@ class Track:
         tags.add(TIT2(encoding=3, text=self.title))
         tags.add(TALB(encoding=3, text=self.album))
         tags.add(TPE1(encoding=3, text=self.artist))
-        tags.add(TRCK(encoding=3, text=f"{self.track_number}"))
+        tags.add(TRCK(encoding=3, text=f"{self.track}"))
         tags.add(TPOS(encoding=3, text=f"{self.disc_id}/{self.disc_total}"))
         tags.save(self.dest, v2_version=3)
 
