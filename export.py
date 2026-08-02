@@ -30,7 +30,7 @@ from dataclasses import dataclass
 import coloredlogs
 from mutagen import File, MutagenError
 from mutagen.mp3 import MP3
-from mutagen.id3 import ID3, TIT2, TALB, TPE1
+from mutagen.id3 import ID3, TIT2, TALB, TPE1, TRCK, TPOS, ID3NoHeaderError
 from tqdm import tqdm
 from typeguard import typechecked
 
