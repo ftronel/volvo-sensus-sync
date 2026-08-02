@@ -81,6 +81,9 @@ class Track:
     disc_total: int | None = None
     processes: ConversionProcess | None = None
 
+    def __hash__(self):
+        return hash(self.source)
+
     def write_tags(self):
         audio = EasyID3(self.dest)
         audio["artist"] = self.artist
