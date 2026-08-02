@@ -303,7 +303,8 @@ file: %s", dest_path)
     return res
 
 @typechecked
-def convert(input_file: Path, output_file: Path, bitrate: int) -> ConversionProcess:
+def convert(input_file: Path, output_file: Path, artist: str, album:str, title: str,
+            track: int, bitrate: int) -> ConversionProcess:
     """Convert *input_file* to MP3 using ``ffmpeg`` at the requested *quality*.
 
     If the source file is already an MP3 a hard‑link (or a copy if hard‑links are
@@ -338,7 +339,8 @@ def convert(input_file: Path, output_file: Path, bitrate: int) -> ConversionProc
     ffmpeg_cmd = [ "ffmpeg", "-hide_banner", "-loglevel", "error", "-nostdin", 
                   "-i", str(input_file), "-f", "wav", "-" ]
 
-    lame_cmd = [ "lame", "-b", f"{bitrate:d}", "-", str(output_file) ]
+    lame_cmd = [ "lame", "-b", f"{bitrate:d}", "--tt", title, "--ta", artist, "-tl", album, 
+                "-tn", f"{track:d}", "-", str(output_file) ]
 
     ffmpeg = subprocess.Popen( ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
                               stdin=subprocess.DEVNULL, start_new_session=True)
@@ -349,15 +351,6 @@ def convert(input_file: Path, output_file: Path, bitrate: int) -> ConversionProc
     ffmpeg.stdout.close()
 
     return ConversionProcess(ffmpeg=ffmpeg, lame=lame)
-
-    # # TODO: add a second process running lame and wait for two processes instead of one !
-    # cmd = [ "ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", str(input_file),
-    #             "-codec:a", "libmp3lame", "-b:a", f"{bitrate:d}k", str(output_file)]
-    # # ffmpeg processes are not in the same session as the Python script.
-    # # Otherwise they would receive SIGINT during interrupt
-    # process = subprocess.Popen(cmd, start_new_session=True)
-    # 
-    # return process
 
 @typechecked
 def scheduler(conversions: list[Track], nb_threads: int, bitrate: int) -> None:
@@ -384,7 +377,8 @@ def scheduler(conversions: list[Track], nb_threads: int, bitrate: int) -> None:
         logger.debug("Filling CPUs with %d conversions", nb_threads)
         while (nb_procs < nb_threads) and (len(conversions) >0):
             current = conversions.pop()
-            conv = convert(current.source, current.dest, bitrate)
+            conv = convert(current.source, current.dest, current.artist, current.album,
+                           current.title, current.track, bitrate)
             # If we draw an MP3 file we keep on trying to fill processor with conversion
             if conv is None:
                 progress.update(1)
