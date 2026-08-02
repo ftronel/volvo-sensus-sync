@@ -66,6 +66,7 @@ class ConversionProcess:
     lame_finished: bool = False
     lame_successful: bool = False
     finished: bool = False
+    successful: bool = False
 
 @dataclass(slots=True)
 class Track:
