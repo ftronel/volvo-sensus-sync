@@ -243,7 +243,7 @@ def get_metadata(files: list[Path]) -> dict[str,dict[str,dict[int,list[Track]]]]
             discs[disc_id] = []
         tracks = discs[disc_id]
         track = Track(source=inode, artist=artist, album=album, disc_id=disc_id,
-                      disc_total=nb_discs, track_id=track_id, track_total=track_total title=title)
+                      disc_total=nb_discs, track_id=track_id, track_total=track_total, title=title)
         tracks.append(track)
 
     return res
