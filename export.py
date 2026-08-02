@@ -374,30 +374,30 @@ def scheduler(conversions: list[Track], nb_threads: int, bitrate: int) -> None:
     """
     logger = logging.getLogger(__name__)
 
-    running = {}
+    tracks_by_pid = {}
+    active_tracks = set()
     errors = set()
     with tqdm(total=len(conversions), desc="Conversions", unit="Track") as progress:
-        progress.set_postfix(active=len(running), errors=len(errors))
+        progress.set_postfix(active=len(active_tracks), errors=len(errors))
         # Fill up the buffer with nb_threads conversions
-        nb_procs = 0
         logger.debug("Filling CPUs with %d conversions", nb_threads)
-        while (nb_procs < nb_threads) and (len(conversions) >0):
-            current = conversions.pop()
-            conv = convert(current.source, current.dest, bitrate)
+        while (len(active_tracks) < nb_threads) and (len(conversions) >0):
+            track = conversions.pop()
+            conv = convert(track.source, track.dest, bitrate)
             # If we draw an MP3 file we keep on trying to fill processor with conversion
             if conv is None:
                 progress.update(1)
-                progress.set_postfix(active=len(running), errors=len(errors))
+                progress.set_postfix(active=len(active_tracks), errors=len(errors))
                 continue
-            current.processes = conv
-            running[conv.lame.pid] = current
-            running[conv.ffmpeg.pid] = current
-            progress.set_postfix(active=len(running), errors=len(errors))
-            nb_procs += 1
+            track.processes = conv
+            tracks_by_pid[conv.lame.pid] = track
+            tracks_by_pid[conv.ffmpeg.pid] = track
+            active_tracks.add(track)
+            progress.set_postfix(active=len(active_tracks), errors=len(errors))
 
         # Keep on launching conversions until completion or interrupt is requested.
-        while ((len(conversions) > 0)  and (len(running) > 0) and (STOP == 0)\
-            or ((len(running) > 0) and (STOP > 0))) :
+        while ((len(conversions) > 0)  and (len(active_tracks) > 0) and (STOP == 0)\
+            or ((len(active_tracks) > 0) and (STOP > 0))) :
             # Wait for completion of a subprocess
             logger.debug("Waiting for conversion completion")
             try:
@@ -407,7 +407,7 @@ def scheduler(conversions: list[Track], nb_threads: int, bitrate: int) -> None:
                 logger.debug("Waiting for end of current conversions")
                 continue
             status = os.WEXITSTATUS(status)
-            track = running[pid]
+            track = tracks_by_pid[pid]
             processes = track.processes
             ffmpeg_pid = processes.ffmpeg.pid
             lame_pid = processes.ffmpeg.pid
@@ -427,11 +427,27 @@ def scheduler(conversions: list[Track], nb_threads: int, bitrate: int) -> None:
                 errors.add(track)
             if processes.finished:
                 if processes.successful:
+                    active_tracks.remove(track)
                     progress.update(1)
                     track.write_tags()
                     logger.debug('Conversion of %s was successful', track)
-                running.pop(pid)
-            progress.set_postfix(active=len(running), errors=len(errors))
+                tracks_by_pid.pop(pid)
+            progress.set_postfix(active=len(active_tracks), errors=len(errors))
+
+            # If we can admit a new conversion, find a candidate
+            while (len(active_tracks) < nb_threads) and STOP == 0:
+                track = conversions.pop()
+                conv = convert(track.source, track.dest, bitrate)
+                # If we draw an MP3 file we keep on trying to fill processor with conversion
+                if conv is None:
+                    progress.update(1)
+                    progress.set_postfix(active=len(active_tracks), errors=len(errors))
+                    continue
+                track.processes = conv
+                tracks_by_pid[conv.lame.pid] = track
+                tracks_by_pid[conv.ffmpeg.pid] = track
+                active_tracks.add(track)
+                progress.set_postfix(active=len(active_tracks), errors=len(errors))
 
 @typechecked
 def mp3_total_size(export_dir: Path) -> int:
