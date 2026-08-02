@@ -227,9 +227,9 @@ def get_metadata(files: list[Path]) -> dict[str,dict[str,dict[int,list[Track]]]]
             nb_discs = 1
         tracknumber = audio.get("tracknumber", ["0"])[0]
         if "/" in tracknumber:
-            track_number, track_total = map(int, tracknumber.split("/", 1))
+            track_id, track_total = map(int, tracknumber.split("/", 1))
         else:
-            track_number = int(tracknumber)
+            track_id = int(tracknumber)
             track_total = 1
         if artist not in res:
             res[artist] = {}
