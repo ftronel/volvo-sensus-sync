@@ -414,7 +414,7 @@ def scheduler(conversions: list[Track], nb_threads: int, bitrate: int) -> None:
                 conv.ffmpeg_finished = True
                 conv.ffmpeg_successful = (status == 0)
             if pid == lame_pid:
-                conv.lame_pid = True
+                conv.lame_finished = True
                 conv.lame_successful = (status == 0)
             conv.finished = conv.ffmpeg_finished and conv.lame_finished
             if conv.finished:
