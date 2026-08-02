@@ -339,8 +339,8 @@ def convert(input_file: Path, output_file: Path, artist: str, album:str, title: 
     ffmpeg_cmd = [ "ffmpeg", "-hide_banner", "-loglevel", "error", "-nostdin", 
                   "-i", str(input_file), "-f", "wav", "-" ]
 
-    lame_cmd = [ "lame", "-b", f"{bitrate:d}", "--tt", title, "--ta", artist, "-tl", album, 
-                "-tn", f"{track:d}", "-", str(output_file) ]
+    lame_cmd = [ "lame", "-b", f"{bitrate:d}", "--tt", title, "--ta", artist, "-tl", album,
+                "-tn", f"{track:d}", "--id3v2-only" "-", str(output_file) ]
 
     ffmpeg = subprocess.Popen( ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
                               stdin=subprocess.DEVNULL, start_new_session=True)
@@ -426,18 +426,6 @@ def scheduler(conversions: list[Track], nb_threads: int, bitrate: int) -> None:
                     logger.debug('Conversion of %s was successful', conv)
                 running.pop(pid)
             progress.set_postfix(active=len(running), errors=len(errors))
-
-            # while (len(running) != nb_threads) and (len(conversions) > 0) \
-            #         and (STOP == 0):
-            #     current = conversions.pop()
-            #     proc = convert(current.source, current.dest, bitrate)
-            #     if proc is None:
-            #         progress.update(1)
-            #         progress.set_postfix(active=len(running), errors=len(errors))
-            #         continue
-            #     current.processes = proc
-            #     running[proc.lame.pid] = current
-            #     progress.set_postfix(active=len(running), errors=len(errors))
 
 @typechecked
 def mp3_total_size(export_dir: Path) -> int:
