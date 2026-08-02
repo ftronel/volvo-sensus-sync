@@ -30,6 +30,7 @@ from dataclasses import dataclass
 import coloredlogs
 from mutagen import File, MutagenError
 from mutagen.mp3 import MP3
+from mutagen.easyid3 import EasyID3
 from tqdm import tqdm
 from typeguard import typechecked
 
@@ -79,6 +80,13 @@ class Track:
     disc_id: int | None = None
     disc_total: int | None = None
     processes: ConversionProcess | None = None
+
+    def write_tags(self):
+        audio = EasyID3(self.dest)
+        audio["artist"] = self.artist
+        audio["album"] = self.album
+        audio["title"] = self.title
+        audio.save(v2_version=3)
 
 STOP = 0
 step = Step.INIT
@@ -303,8 +311,7 @@ file: %s", dest_path)
     return res
 
 @typechecked
-def convert(input_file: Path, output_file: Path, artist: str, album:str, title: str,
-            track: int, bitrate: int) -> ConversionProcess:
+def convert(input_file: Path, output_file: Path, bitrate: int) -> ConversionProcess:
     """Convert *input_file* to MP3 using ``ffmpeg`` at the requested *quality*.
 
     If the source file is already an MP3 a hard‑link (or a copy if hard‑links are
@@ -336,11 +343,10 @@ def convert(input_file: Path, output_file: Path, artist: str, album:str, title: 
             shutil.copy2(input_file, output_file)
         return None
 
-    ffmpeg_cmd = [ "ffmpeg", "-hide_banner", "-loglevel", "error", "-nostdin", 
+    ffmpeg_cmd = [ "ffmpeg", "-hide_banner", "-loglevel", "error", "-nostdin",
                   "-i", str(input_file), "-f", "wav", "-" ]
 
-    lame_cmd = [ "lame", "-b", f"{bitrate:d}", "--tt", title, "--ta", artist, "-tl", album,
-                "-tn", f"{track:d}", "--id3v2-only" "-", str(output_file) ]
+    lame_cmd = [ "lame", "-b", f"{bitrate:d}", "-", str(output_file) ]
 
     ffmpeg = subprocess.Popen( ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
                               stdin=subprocess.DEVNULL, start_new_session=True)
@@ -377,8 +383,7 @@ def scheduler(conversions: list[Track], nb_threads: int, bitrate: int) -> None:
         logger.debug("Filling CPUs with %d conversions", nb_threads)
         while (nb_procs < nb_threads) and (len(conversions) >0):
             current = conversions.pop()
-            conv = convert(current.source, current.dest, current.artist, current.album,
-                           current.title, current.track, bitrate)
+            conv = convert(current.source, current.dest, bitrate)
             # If we draw an MP3 file we keep on trying to fill processor with conversion
             if conv is None:
                 progress.update(1)
@@ -408,14 +413,13 @@ def scheduler(conversions: list[Track], nb_threads: int, bitrate: int) -> None:
             lame_pid = processes.ffmpeg.pid
             if pid == ffmpeg_pid:
                 processes.ffmpeg_finished = True
-                processes.ffmpeg_successful = (status == 0)
+                processes.ffmpeg_successful = status == 0
             if pid == lame_pid:
                 processes.lame_finished = True
-                processes.lame_successful = (status == 0)
+                processes.lame_successful = status == 0
             processes.finished = processes.ffmpeg_finished and processes.lame_finished
             if processes.finished:
                 processes.successful == processes.ffmpeg_successful and processes.lame_successful
-                progress.update(1)
             if status != 0:
                 logger.error('Conversion was not successful for %s', conv)
                 failed_path = conv.dest
@@ -423,6 +427,7 @@ def scheduler(conversions: list[Track], nb_threads: int, bitrate: int) -> None:
                 errors.add(conv)
             if processes.finished:
                 if processes.successful:
+                    progress.update(1)
                     logger.debug('Conversion of %s was successful', conv)
                 running.pop(pid)
             progress.set_postfix(active=len(running), errors=len(errors))
@@ -568,7 +573,7 @@ def main():
     parser.add_argument("-S","--size", action='store', dest='max_dir_size',
                         type=int, default=14500000000,\
                         help="Maximal size of each export directory")
-    parser.add_argument("-F","--fullsize", action='store_true', dest='full_size', 
+    parser.add_argument("-F","--fullsize", action='store_true', dest='full_size',
                         help="Fill first partitions to their maximal size.")
     parser.add_argument("-B","--bitrate", action='store', dest='bitrate',
                         type=int, default=128,\
