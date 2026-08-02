@@ -61,6 +61,11 @@ class Step(IntEnum):
 class ConversionProcess:
     ffmpeg: subprocess.Popen
     lame: subprocess.Popen
+    ffmpeg_finished: bool = False
+    ffmpeg_successful: bool = False
+    lame_finished: bool = False
+    lame_successful: bool = False
+    finished: bool = False
 
 @dataclass(slots=True)
 class Track:
@@ -72,7 +77,7 @@ class Track:
     track: int | None = None
     disc_id: int | None = None
     disc_total: int | None = None
-    process: ConversionProcess | None = None
+    processes: ConversionProcess | None = None
 
 STOP = 0
 step = Step.INIT
@@ -370,7 +375,7 @@ def scheduler(conversions: list[Track], nb_threads: int, bitrate: int) -> None:
     logger = logging.getLogger(__name__)
 
     running = {}
-    errors = []
+    errors = Set()
     with tqdm(total=len(conversions), desc="Conversions", unit="Track") as progress:
         progress.set_postfix(active=len(running), errors=len(errors))
         # Fill up the buffer with nb_threads conversions
@@ -378,17 +383,19 @@ def scheduler(conversions: list[Track], nb_threads: int, bitrate: int) -> None:
         logger.debug("Filling CPUs with %d conversions", nb_threads)
         while (nb_procs < nb_threads) and (len(conversions) >0):
             current = conversions.pop()
-            proc = convert(current.source, current.dest, bitrate)
+            conv = convert(current.source, current.dest, bitrate)
             # If we draw an MP3 file we keep on trying to fill processor with conversion
-            if proc is None:
+            if conv is None:
                 progress.update(1)
                 progress.set_postfix(active=len(running), errors=len(errors))
                 continue
-            current.process = proc
-            running[proc.lame.pid] = current
+            current.processes = conv
+            running[conv.lame.pid] = current
+            running[conv.ffmpeg.pid] = current
             progress.set_postfix(active=len(running), errors=len(errors))
             nb_procs += 1
 
+        # Keep on launching conversions until completion or interrupt is requested.
         while ((len(conversions) > 0)  and (len(running) > 0) and (STOP == 0)\
             or ((len(running) > 0) and (STOP > 0))) :
             # Wait for completion of a subprocess
@@ -399,28 +406,42 @@ def scheduler(conversions: list[Track], nb_threads: int, bitrate: int) -> None:
             except KeyboardInterrupt:
                 logger.debug("Waiting for end of current conversions")
                 continue
-            if os.WEXITSTATUS(status) != 0:
-                failed = running[pid]
-                logger.error('Conversion was not successuful for %s', failed)
-                failed_path = failed.dest
+            status = os.WEXITSTATUS(status)
+            conv = running[pid].processes
+            ffmpeg_pid = conv.ffmpeg.pid
+            lame_pid = conv.ffmpeg.pid
+            if pid == ffmpeg_pid:
+                conv.ffmpeg_finished = True
+                conv.ffmpeg_successful = (status == 0)
+            if pid == lame_pid:
+                conv.lame_pid = True
+                conv.lame_successful = (status == 0)
+            conv.finished = conv.ffmpeg_finished and conv.lame_finished
+            if conv.finished:
+                conv.successful == conv.ffmpeg_successful and conv.lame_successful
+                progress.update(1)
+            if status != 0:
+                logger.error('Conversion was not successuful for %s', conv)
+                failed_path = conv.dest
                 failed_path.unlink(missing_ok = True)
-                errors.append(failed)
-            else:
-                logger.debug('Conversion of %s was successful', running[pid])
-            running.pop(pid)
-            progress.update(1)
+                errors.add(conv)
+            if conv.finished:
+                if conv.successuful:
+                    logger.debug('Conversion of %s was successful', running[pid])
+                running.pop(pid)
             progress.set_postfix(active=len(running), errors=len(errors))
-            while (len(running) != nb_threads) and (len(conversions) > 0) \
-                    and (STOP == 0):
-                current = conversions.pop()
-                proc = convert(current.source, current.dest, bitrate)
-                if proc is None:
-                    progress.update(1)
-                    progress.set_postfix(active=len(running), errors=len(errors))
-                    continue
-                current.process = proc
-                running[proc.lame.pid] = current
-                progress.set_postfix(active=len(running), errors=len(errors))
+
+            # while (len(running) != nb_threads) and (len(conversions) > 0) \
+            #         and (STOP == 0):
+            #     current = conversions.pop()
+            #     proc = convert(current.source, current.dest, bitrate)
+            #     if proc is None:
+            #         progress.update(1)
+            #         progress.set_postfix(active=len(running), errors=len(errors))
+            #         continue
+            #     current.processes = proc
+            #     running[proc.lame.pid] = current
+            #     progress.set_postfix(active=len(running), errors=len(errors))
 
 @typechecked
 def mp3_total_size(export_dir: Path) -> int:
