@@ -424,7 +424,7 @@ def scheduler(conversions: list[Track], nb_threads: int, bitrate: int) -> None:
                 processes.lame_successful = status == 0
             processes.finished = processes.ffmpeg_finished and processes.lame_finished
             if processes.finished:
-                processes.successful == processes.ffmpeg_successful and processes.lame_successful
+                processes.successful = processes.ffmpeg_successful and processes.lame_successful
             if status != 0:
                 logger.error('Conversion was not successful for %s', track)
                 failed_path = track.dest
