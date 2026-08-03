@@ -60,6 +60,46 @@ class Step(IntEnum):
 
 @dataclass(slots=True)
 class ConversionProcess:
+    """
+    Container that tracks the life‑cycle of the external processes used to
+    convert a single audio file.
+
+    The original implementation can launch two subprocesses:
+
+    * **ffmpeg**: performs the decoding / re‑encoding of the source audio
+      to a raw PCM stream.
+    * **lame**: encodes the PCM stream into a final MP3 file.
+
+    Each subprocess is represented by a :class:`subprocess.Popen` instance.
+    The boolean flags record whether a process has finished and whether it
+    succeeded (i.e. exited with a return code of ``0``).  The aggregated
+    ``finished`` and ``successful`` flags provide a convenient way to query
+    the overall conversion status for a track.
+
+    Attributes
+    ----------
+    ffmpeg: subprocess.Popen
+        The ``ffmpeg`` process handling the decoding step.  ``None`` is not
+        allowed: a ``ConversionProcess`` is always instantiated with a valid
+        process object.
+    lame: subprocess.Popen
+        The ``lame`` process that receives the decoded audio and produces the
+        final MP3 file.
+    ffmpeg_finished: bool, default ``False``
+        ``True`` when the ``ffmpeg`` process has terminated.
+    ffmpeg_successful: bool, default ``False``
+        ``True`` when ``ffmpeg`` exited with status ``0``.
+    lame_finished: bool, default ``False``
+        ``True`` when the ``lame`` process has terminated.
+    lame_successful: bool, default ``False``
+        ``True`` when ``lame`` exited with status ``0``.
+    finished: bool, default ``False``
+        ``True`` when **both** subprocesses have finished.
+    successful: bool, default ``False``
+        ``True`` when **both** subprocesses have finished *and* were
+        successful.  This mirrors the logical ``ffmpeg_successful and
+        lame_successful``.
+    """
     ffmpeg: subprocess.Popen
     lame: subprocess.Popen
     ffmpeg_finished: bool = False
@@ -71,6 +111,27 @@ class ConversionProcess:
 
 @dataclass(slots=True)
 class Track:
+    """
+    Representation of a single audio track that will be converted to MP3.
+
+    The class stores both source metadata (artist, album, title, etc.) and the
+    destination path where the final MP3 will be written.  It also holds a
+    reference to a :class:`ConversionProcess` when the track is currently being
+    converted.
+
+    Equality and hashing are based solely on the *source* path so that a
+    ``Track`` can be used as a dictionary key or stored in a ``set`` without
+    needing to compare all metadata fields.
+
+    Methods
+    -------
+    __hash__():
+        Return a hash value derived from the ``source`` attribute.
+    write_tags():
+        Write ID3v2.3 tags (title, album, artist, track number, disc number) to
+        the destination MP3 file.  Missing tags are created if the file does not
+        already contain an ID3 header.
+    """
     source: Path
     artist: str
     album: str
@@ -83,9 +144,42 @@ class Track:
     processes: ConversionProcess | None = None
 
     def __hash__(self):
+        """
+        Compute a hash based on the source file path.
+
+        Using the source path as the unique identifier ensures that two ``Track``
+        objects pointing to the same original file are considered equal in hash‑
+        based collections.
+
+        Returns
+        -------
+        int
+            The hash of ``self.source``.
+        """
         return hash(self.source)
 
     def write_tags(self):
+        """
+        Write or update ID3v2.3 tags on the destination MP3 file.
+
+        The method creates an ``ID3`` object (adding a new header if one does not
+        already exist) and populates the following frames:
+
+        * ``TIT2`` – Title
+        * ``TALB`` – Album
+        * ``TPE1`` – Artist (lead performer)
+        * ``TRCK`` – Track number/total (e.g. ``"5/12"``)
+        * ``TPOS`` – Disc number/total (e.g. ``"1/2"``)
+
+        The tags are saved using version 2.3 of the ID3 specification to retain
+        broad compatibility with older players.
+
+        Raises
+        ------
+        mutagen.id3.ID3Error
+            Propagated if Mutagen fails to write the tags (e.g., permission
+            issues or file corruption).
+        """
         try:
             tags = ID3(self.dest)
         except ID3NoHeaderError:
@@ -118,6 +212,29 @@ def sigint_handler(signum, frame):
 
 @typechecked
 def check_binaries() -> None:
+    """
+    Verify that the external command‑line tools required by the application are
+    available in the current ``PATH``.
+
+    The program depends on the ``ffmpeg`` and ``lame`` binaries to perform audio
+    decoding and MP3 encoding.  This helper checks for their presence using
+    :func:`shutil.which`.  If a binary cannot be located, an error is logged and
+    the program terminates with a non‑zero exit status.
+
+    Raises
+    ------
+    SystemExit
+        The function calls ``sys.exit(1)`` when one or more required binaries
+        are missing, causing the whole script to stop immediately.
+
+    Notes
+    -----
+    - No return value is produced; the function either completes silently (all
+      binaries found) or aborts the process.
+    - The check is performed at import/initialisation time in many scripts, so
+      that missing dependencies are caught early rather than failing during a
+      conversion job.
+    """
     logger = logging.getLogger(__name__)
 
     binaries = [ 'ffmpeg', 'lame']
