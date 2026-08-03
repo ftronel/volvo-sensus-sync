@@ -685,7 +685,7 @@ def create_partitions(export: Path, all_tracks: Path, partitions: list[list[Path
                     target_path = part_path / rel_path
                     if track.is_file():
                         plan.write(f"{track}\n")
-                        track.parent.mkdir(exist_ok=True, parents=True)
+                        target_path.parent.mkdir(exist_ok=True, parents=True)
                         if not target_path.exists():
                             target_path.hardlink_to(track)
                         else:
