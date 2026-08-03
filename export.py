@@ -319,7 +319,7 @@ file: %s", dest_path)
     return res
 
 @typechecked
-def convert(input_file: Path, output_file: Path, bitrate: int) -> ConversionProcess:
+def convert(input_file: Path, output_file: Path, bitrate: int) -> ConversionProcess | None:
     """Convert *input_file* to MP3 using ``ffmpeg`` at the requested *quality*.
 
     If the source file is already an MP3 a hard‑link (or a copy if hard‑links are
