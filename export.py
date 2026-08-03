@@ -679,7 +679,7 @@ def create_partitions(export: Path, all_tracks: Path, partitions: list[list[Path
         plan_path = part_path / "sync-partition.sh"
         with plan_path.open("w", encoding="utf-8") as plan:
             for artist in part:
-                tracks = artist.rglob("*"), key=sort_artist_path)
+                tracks = sorted(artist.rglob("*"), key=sort_artist_path)
                 for track in tracks:
                     rel_path = track.relative_to(all_tracks)
                     target_path = part_path / rel_path
