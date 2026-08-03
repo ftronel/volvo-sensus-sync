@@ -684,7 +684,7 @@ def create_partitions(export: Path, all_tracks: Path, partitions: list[list[Path
                     rel_path = track.relative_to(all_tracks)
                     target_path = part_path / rel_path
                     if track.is_file():
-                        plan.write(f"{inode}\n")
+                        plan.write(f"{track}\n")
                         if not target_path.exists():
                             target_path.hardlink_to(track)
                         else:
