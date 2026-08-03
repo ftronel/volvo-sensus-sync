@@ -680,6 +680,7 @@ def create_partitions(export: Path, all_tracks: Path, partitions: list[list[Path
         with plan_path.open("w", encoding="utf-8") as plan:
             for artist in part:
                 tracks = sorted(artist.rglob("*"), key=sort_artist_path)
+                print(tracks)
                 for track in tracks:
                     rel_path = track.relative_to(all_tracks)
                     target_path = part_path / rel_path
