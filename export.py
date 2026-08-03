@@ -563,7 +563,7 @@ def scheduler(conversions: list[Track], nb_threads: int, bitrate: int) -> None:
             progress.set_postfix(active=len(active_tracks), errors=len(errors))
 
             # If we can admit a new conversion, find a candidate
-            while (len(active_tracks) < nb_threads) and STOP == 0:
+            while len(active_tracks) < nb_threads and len(conversions)>0 and STOP == 0:
                 track = conversions.pop()
                 conv = convert(track.source, track.dest, bitrate)
                 # If we draw an MP3 file we keep on trying to fill processor with conversion
