@@ -676,7 +676,7 @@ def create_partitions(export: Path, all_tracks: Path, partitions: list[list[Path
     for part in partitions:
         part_path = export / f"{part_num}"
         part_path.mkdir(exist_ok=True, parents=True)
-        plan_path = part_path / ""sync-partition.sh"
+        plan_path = part_path / "sync-partition.sh"
         with plan_path.open("w", encoding="utf-8") as plan:
             for artist in part:
                 for inode in artist.rglob("*"):
