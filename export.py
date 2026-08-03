@@ -681,6 +681,7 @@ def create_partitions(export: Path, all_tracks: Path, partitions: list[list[Path
             for artist in part:
                 tracks = artist.rglob("*")
                 for track in tracks:
+                    print(track)
                     rel_path = track.relative_to(all_tracks)
                     target_path = part_path / rel_path
                     if track.is_file():
