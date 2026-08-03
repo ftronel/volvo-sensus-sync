@@ -679,13 +679,13 @@ def create_partitions(export: Path, all_tracks: Path, partitions: list[list[Path
         plan_path = part_path / "sync-partition.sh"
         with plan_path.open("w", encoding="utf-8") as plan:
             for artist in part:
-                tracks = artist.rglob("*")
+                tracks = artist.rglob("*"), key=sort_artist_path)
                 for track in tracks:
-                    print(track)
                     rel_path = track.relative_to(all_tracks)
                     target_path = part_path / rel_path
                     if track.is_file():
                         plan.write(f"{track}\n")
+                        plan.parent.mkdir(exist_ok=True, parents=True)
                         if not target_path.exists():
                             target_path.hardlink_to(track)
                         else:
