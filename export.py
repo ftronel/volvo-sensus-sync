@@ -693,7 +693,7 @@ def create_partitions(export: Path, all_tracks: Path, partitions: list[list[Path
         part_path.mkdir(exist_ok=True, parents=True)
         plan_path = part_path / "sync-partition.sh"
         with plan_path.open("w", encoding="utf-8") as plan:
-            plan_path.write(PLANSH)
+            plan.write(PLANSH)
             for artist in part:
                 tracks = sorted(artist.rglob("*"))
                 for track in tracks:
