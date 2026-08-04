@@ -40,6 +40,21 @@ AUDIO_EXTENSIONS = { ".mp3", ".flac", ".wav", ".ogg", ".m4a", ".aac", ".wma",
 
 INVALID = r'[<>:"/\\|?*\x00-\x1F]'
 
+PLANSH =  """#!/bin/sh
+set -e
+
+copy()
+{
+    mkdir -p "$(dirname "$2")"
+    cp -p "$1" "$2"
+}
+
+while IFS="$(printf '\t')" read -r src dst
+do
+    copy "$src" "$dst"
+done <<'__SYNC_PLAN__'
+"""
+
 class Step(IntEnum):
     """Enumeration describing the current processing step.
 
@@ -678,13 +693,14 @@ def create_partitions(export: Path, all_tracks: Path, partitions: list[list[Path
         part_path.mkdir(exist_ok=True, parents=True)
         plan_path = part_path / "sync-partition.sh"
         with plan_path.open("w", encoding="utf-8") as plan:
+            plan_path.write(PLANSH)
             for artist in part:
                 tracks = sorted(artist.rglob("*"))
                 for track in tracks:
                     rel_path = track.relative_to(all_tracks)
                     target_path = part_path / rel_path
                     if track.is_file():
-                        plan.write(f"{track}\n")
+                        plan.write(f"{rel_path}\n")
                         target_path.parent.mkdir(exist_ok=True, parents=True)
                         if not target_path.exists():
                             target_path.hardlink_to(track)
