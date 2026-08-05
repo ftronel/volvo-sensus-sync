@@ -140,17 +140,10 @@ class ConversionProcess:
     Container that tracks the life‑cycle of the external processes used to
     convert a single audio file.
 
-    The original implementation can launch two subprocesses:
+    This implementation launch a single process:
 
     * **ffmpeg**: performs the decoding / re‑encoding of the source audio
-      to a raw PCM stream.
-    * **lame**: encodes the PCM stream into a final MP3 file.
-
-    Each subprocess is represented by a :class:`subprocess.Popen` instance.
-    The boolean flags record whether a process has finished and whether it
-    succeeded (i.e. exited with a return code of ``0``).  The aggregated
-    ``finished`` and ``successful`` flags provide a convenient way to query
-    the overall conversion status for a track.
+      to a MP3 compatible with Volvo Sensus.
 
     Attributes
     ----------
@@ -275,7 +268,7 @@ def check_binaries() -> None:
     Verify that the external command‑line tools required by the application are
     available in the current ``PATH``.
 
-    The program depends on the ``ffmpeg`` and ``lame`` binaries to perform audio
+    The program depends on the ``ffmpeg`` binary to perform audio
     decoding and MP3 encoding.  This helper checks for their presence using
     :func:`shutil.which`.  If a binary cannot be located, an error is logged and
     the program terminates with a non‑zero exit status.
@@ -296,7 +289,7 @@ def check_binaries() -> None:
     """
     logger = logging.getLogger(__name__)
 
-    binaries = [ 'ffmpeg', 'lame']
+    binaries = [ 'ffmpeg']
     for binary in binaries:
         if which(binary) is None:
             logger.error("%s is not installed.", binary)
