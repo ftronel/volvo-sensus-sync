@@ -43,14 +43,75 @@ INVALID = r'[<>:"/\\|?*\x00-\x1F]'
 PLANSH =  """#!/bin/sh
 set -e
 
+usage()
+{
+    cat <<EOF
+Usage: $0 -d DIRECTORY
+
+Options:
+  -d, --directory DIR   Destination de la copie
+  -h, --help            Affiche cette aide
+EOF
+}
+
+DESTINATION=
+
+while [ $# -gt 0 ]
+do
+    case "$1" in
+        -h|--help)
+            usage
+            exit 0
+            ;;
+
+        -d|--directory)
+            shift
+            [ $# -gt 0 ] || {
+                echo "Option $0: argument manquant." >&2
+                exit 1
+            }
+            DESTINATION=$1
+            ;;
+
+        --)
+            shift
+            break
+            ;;
+
+        -*)
+            echo "Option inconnue : $1" >&2
+            usage >&2
+            exit 1
+            ;;
+
+        *)
+            echo "Argument inattendu : $1" >&2
+            usage >&2
+            exit 1
+            ;;
+    esac
+
+    shift
+done
+
+[ -n "$DESTINATION" ] || {
+    echo "L'option -d est obligatoire." >&2
+    usage >&2
+    exit 1
+}
+
+
 copy()
 {
     mkdir -p "$(dirname "$2")"
     cp -p "$1" "$2"
 }
 
-while IFS="$(printf '\t')" read -r src dst
+
+
+while IFS="$(printf '\t')" read -r src
 do
+    dst="$DESTINATION/$src"
     copy "$src" "$dst"
 done <<'__SYNC_PLAN__'
 """
@@ -708,6 +769,7 @@ def create_partitions(export: Path, all_tracks: Path, partitions: list[list[Path
                             logger.warning("Target file exists: %s", target_path)
                     elif track.is_dir():
                         target_path.mkdir(exist_ok=True, parents=True)
+            plan.write(f"__SYNC_PLAN__\n")
         part_num += 1
 
 def main():
