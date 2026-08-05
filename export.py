@@ -520,9 +520,12 @@ def convert(input_file: Path, output_file: Path, bitrate: int) -> ConversionProc
             shutil.copy2(input_file, output_file)
         return None
 
+    # We only transcode the audio track to MP3 and suppress all others metadata
+    # since they will be written later by mutagen.
     ffmpeg_cmd = [ "ffmpeg", "-hide_banner", "-loglevel", "error", "-nostdin",
-                    "-i", str(input_file),"-codec:a", "libmp3lame", "-b:a", f"{bitrate}k", 
-                    "-write_xing", "0", str(output_file)
+                    "-i", str(input_file),"-codec:a", "libmp3lame", "-b:a", f"{bitrate}k",
+                    "-write_xing", "0",  "-map", "0:a:0", "-map_metadata", "-1",
+                    str(output_file)
                 ]
 
     ffmpeg = subprocess.Popen(ffmpeg_cmd, start_new_session=True)
