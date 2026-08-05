@@ -158,30 +158,13 @@ class ConversionProcess:
         The ``ffmpeg`` process handling the decoding step.  ``None`` is not
         allowed: a ``ConversionProcess`` is always instantiated with a valid
         process object.
-    lame: subprocess.Popen
-        The ``lame`` process that receives the decoded audio and produces the
-        final MP3 file.
-    ffmpeg_finished: bool, default ``False``
-        ``True`` when the ``ffmpeg`` process has terminated.
-    ffmpeg_successful: bool, default ``False``
-        ``True`` when ``ffmpeg`` exited with status ``0``.
-    lame_finished: bool, default ``False``
-        ``True`` when the ``lame`` process has terminated.
-    lame_successful: bool, default ``False``
-        ``True`` when ``lame`` exited with status ``0``.
     finished: bool, default ``False``
-        ``True`` when **both** subprocesses have finished.
+        ``True`` when ffmpeg subprocess has finished.
     successful: bool, default ``False``
-        ``True`` when **both** subprocesses have finished *and* were
-        successful.  This mirrors the logical ``ffmpeg_successful and
-        lame_successful``.
+        ``True`` when ffmpeg subprocess have finished *and* was
+        successful.
     """
     ffmpeg: subprocess.Popen
-    lame: subprocess.Popen
-    ffmpeg_finished: bool = False
-    ffmpeg_successful: bool = False
-    lame_finished: bool = False
-    lame_successful: bool = False
     finished: bool = False
     successful: bool = False
 
@@ -217,7 +200,7 @@ class Track:
     track_total: int | None = None
     disc_id: int | None = None
     disc_total: int | None = None
-    processes: ConversionProcess | None = None
+    process: ConversionProcess | None = None
 
     def __hash__(self):
         """
@@ -545,19 +528,13 @@ def convert(input_file: Path, output_file: Path, bitrate: int) -> ConversionProc
         return None
 
     ffmpeg_cmd = [ "ffmpeg", "-hide_banner", "-loglevel", "error", "-nostdin",
-                  "-i", str(input_file), "-f", "wav", "-" ]
+                    "-i", str(input_file),"-codec:a", "libmp3lame", "-b:a", f"{bitrate}k", 
+                    "-write_xing", "0", str(output_file)
+                ]
 
-    lame_cmd = [ "lame", "-b", f"{bitrate:d}", "-", str(output_file) ]
+    ffmpeg = subprocess.Popen(ffmpeg_cmd, start_new_session=True)
 
-    ffmpeg = subprocess.Popen( ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
-                              stdin=subprocess.DEVNULL, start_new_session=True)
-
-    lame = subprocess.Popen( lame_cmd, stdin=ffmpeg.stdout, stdout=subprocess.DEVNULL,
-                            stderr=subprocess.DEVNULL, start_new_session=True)
-
-    ffmpeg.stdout.close()
-
-    return ConversionProcess(ffmpeg=ffmpeg, lame=lame)
+    return ConversionProcess(ffmpeg=ffmpeg)
 
 @typechecked
 def scheduler(conversions: list[Track], nb_threads: int, bitrate: int) -> None:
@@ -590,8 +567,7 @@ def scheduler(conversions: list[Track], nb_threads: int, bitrate: int) -> None:
                 progress.update(1)
                 progress.set_postfix(active=len(active_tracks), errors=len(errors))
                 continue
-            track.processes = conv
-            tracks_by_pid[conv.lame.pid] = track
+            track.process = conv
             tracks_by_pid[conv.ffmpeg.pid] = track
             active_tracks.add(track)
             progress.set_postfix(active=len(active_tracks), errors=len(errors))
@@ -609,28 +585,18 @@ def scheduler(conversions: list[Track], nb_threads: int, bitrate: int) -> None:
                 continue
             status = os.WEXITSTATUS(status)
             track = tracks_by_pid[pid]
-            processes = track.processes
-            ffmpeg_pid = processes.ffmpeg.pid
-            lame_pid = processes.lame.pid
-            if pid == ffmpeg_pid:
-                logger.debug('ffmpeg finished for %s', track)
-                processes.ffmpeg_finished = True
-                processes.ffmpeg_successful = status == 0
-            if pid == lame_pid:
-                logger.debug('lame finished for %s', track)
-                processes.lame_finished = True
-                processes.lame_successful = status == 0
-            processes.finished = processes.ffmpeg_finished and processes.lame_finished
-            if processes.finished:
-                processes.successful = processes.ffmpeg_successful and processes.lame_successful
+            process = track.process
+            logger.debug('ffmpeg finished for %s', track)
+            process.finished = True
+            process.successful = status == 0
             if status != 0:
                 logger.error('Conversion was not successful for %s', track)
                 failed_path = track.dest
                 failed_path.unlink(missing_ok = True)
                 errors.add(track)
             logger.debug("Track status: %s", track)
-            if processes.finished:
-                if processes.successful:
+            if process.finished:
+                if process.successful:
                     active_tracks.remove(track)
                     progress.update(1)
                     track.write_tags()
@@ -647,8 +613,7 @@ def scheduler(conversions: list[Track], nb_threads: int, bitrate: int) -> None:
                     progress.update(1)
                     progress.set_postfix(active=len(active_tracks), errors=len(errors))
                     continue
-                track.processes = conv
-                tracks_by_pid[conv.lame.pid] = track
+                track.process = conv
                 tracks_by_pid[conv.ffmpeg.pid] = track
                 active_tracks.add(track)
                 progress.set_postfix(active=len(active_tracks), errors=len(errors))
@@ -769,7 +734,7 @@ def create_partitions(export: Path, all_tracks: Path, partitions: list[list[Path
                             logger.warning("Target file exists: %s", target_path)
                     elif track.is_dir():
                         target_path.mkdir(exist_ok=True, parents=True)
-            plan.write(f"__SYNC_PLAN__\n")
+            plan.write("__SYNC_PLAN__\n")
         part_num += 1
 
 def main():
