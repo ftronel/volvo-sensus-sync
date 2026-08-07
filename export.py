@@ -894,7 +894,12 @@ def main():
     if args.nb_threads is None:
         args.nb_threads = os.cpu_count() or 1
 
-    settings = None
+    if args.cbr is not None:
+        settings = EncodingSettings(mode=EncodingMode.CBR, value=int(args.cbr))
+    if args.abr is not None:
+        settings = EncodingSettings(mode=EncodingMode.ABR, value=int(args.abr))
+    if args.vbr is not None:
+        settings = EncodingSettings(mode=EncodingMode.VBR, value=int(args.vbr))
 
     logger.debug('Arguments: %s',args)
 
