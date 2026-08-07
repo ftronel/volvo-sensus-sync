@@ -532,7 +532,8 @@ def parse_xing(path: Path) -> XingHeader:
         header = int.from_bytes(f.read(4), "big")
 
         if (header >> 21) != 0x7FF:
-            raise ValueError("No MPEG frame found")
+            logger.error("No MPEG frame found in %s", path)
+            sys.exit(-1)
 
         version_bits = (header >> 19) & 0b11
         channel_mode = (header >> 6) & 0b11
