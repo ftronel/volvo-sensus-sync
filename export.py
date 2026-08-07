@@ -245,6 +245,15 @@ class Track:
         tags.add(TPOS(encoding=3, text=f"{self.disc_id}/{self.disc_total}"))
         tags.save(self.dest, v2_version=3)
 
+@dataclass(slots=True)
+class XingHeader:
+    present: bool
+    magic: str | None = None
+    is_lame: bool = False
+    encoder: str | None = None
+
+
+
 STOP = 0
 step = Step.INIT
 
@@ -488,6 +497,88 @@ file: %s", dest_path)
 
     return res
 
+def _read_synchsafe(value: bytes) -> int:
+    return (
+        (value[0] << 21)
+        | (value[1] << 14)
+        | (value[2] << 7)
+        | value[3]
+    )
+
+def parse_xing(path: Path) -> XingHeader:
+    with path.open("rb") as f:
+
+        #
+        # Skip ID3v2 if present
+        #
+        if f.read(3) == b"ID3":
+            f.read(3)
+            size = _read_synchsafe(f.read(4))
+            f.seek(10 + size)
+        else:
+            f.seek(0)
+
+        frame_offset = f.tell()
+
+        header = int.from_bytes(f.read(4), "big")
+
+        if (header >> 21) != 0x7FF:
+            raise ValueError("No MPEG frame found")
+
+        version_bits = (header >> 19) & 0b11
+        channel_mode = (header >> 6) & 0b11
+
+        #
+        # Compute side information size
+        #
+        if version_bits == 0b11:          # MPEG-1
+            side_info = 17 if channel_mode == 3 else 32
+        else:                              # MPEG-2 / 2.5
+            side_info = 9 if channel_mode == 3 else 17
+
+        xing_offset = frame_offset + 4 + side_info
+
+        f.seek(xing_offset)
+
+        magic = f.read(4)
+
+        if magic not in (b"Xing", b"Info"):
+            return XingHeader(
+                present=False,
+            )
+
+        flags = int.from_bytes(f.read(4), "big")
+
+        if flags & 0x0001:      # Frames
+            f.seek(4, 1)
+
+        if flags & 0x0002:      # Bytes
+            f.seek(4, 1)
+
+        if flags & 0x0004:      # TOC
+            f.seek(100, 1)
+
+        if flags & 0x0008:      # Quality
+            f.seek(4, 1)
+
+        lame_id = f.read(9).decode("ascii", errors="replace")
+        is_lame = lame_id.startswith("LAME")
+
+        return XingHeader(
+            present=True,
+            magic = magic,
+            is_lame = is_lame,
+            encoder = lame_id,
+        )
+
+def check_sensus_compatibility(audio, path) -> bool:
+    if not isinstance(audio, MP3):
+        return False
+
+    xing = parse_xing(path)
+    # Either Xing header is not present or encoder is Lame
+    return (not xing.present) or xing.is_lame
+
 @typechecked
 def convert(input_file: Path, output_file: Path, bitrate: int) -> ConversionProcess | None:
     """Convert *input_file* to MP3 using ``ffmpeg`` at the requested *quality*.
@@ -513,7 +604,8 @@ def convert(input_file: Path, output_file: Path, bitrate: int) -> ConversionProc
         return None
 
     audio = File(input_file)
-    if isinstance(audio, MP3):
+    compat = check_sensus_compatibility(audio, input_file)
+    if compat:
         try:
             output_file.hardlink_to(input_file)
         except OSError:
