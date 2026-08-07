@@ -895,11 +895,13 @@ def main():
         args.nb_threads = os.cpu_count() or 1
 
     if args.cbr is not None:
-        settings = EncodingSettings(mode=EncodingMode.CBR, value=int(args.cbr))
-    if args.abr is not None:
-        settings = EncodingSettings(mode=EncodingMode.ABR, value=int(args.abr))
-    if args.vbr is not None:
-        settings = EncodingSettings(mode=EncodingMode.VBR, value=int(args.vbr))
+        settings = EncodingSettings(EncodingMode.CBR, args.cbr)
+    elif args.abr is not None:
+        settings = EncodingSettings(EncodingMode.ABR, args.abr)
+    elif args.vbr is not None:
+        settings = EncodingSettings(EncodingMode.VBR, args.vbr)
+    else:
+        settings = EncodingSettings(EncodingMode.VBR, 5)  # valeur par défaut
 
     logger.debug('Arguments: %s',args)
 
