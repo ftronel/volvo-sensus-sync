@@ -878,7 +878,7 @@ def main():
                         help="Fill first partitions to their maximal size.")
 
     # Encoding settings
-    group = parser.add_mutually_exclusive_group()
+    group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--cbr", type=int)
     group.add_argument("--abr", type=int)
     group.add_argument("--vbr", type=int)
