@@ -103,6 +103,7 @@ done
 
 copy()
 {
+    echo "Copying $1 to $2"
     mkdir -p "$(dirname "$2")"
     cp -p "$1" "$2"
 }
