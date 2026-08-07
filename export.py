@@ -252,7 +252,16 @@ class XingHeader:
     is_lame: bool = False
     encoder: str | None = None
 
+class EncodingMode(IntEnum):
+    CBR = 0
+    ABR = 1
+    VBR = 2
 
+
+@dataclass(slots=True)
+class EncodingSettings:
+    mode: EncodingMode
+    value: int
 
 STOP = 0
 step = Step.INIT
@@ -580,7 +589,8 @@ def check_sensus_compatibility(audio, path) -> bool:
     return (not xing.present) or xing.is_lame
 
 @typechecked
-def convert(input_file: Path, output_file: Path, bitrate: int) -> ConversionProcess | None:
+def convert(input_file: Path, output_file: Path,
+            settings: EncodingSettings) -> ConversionProcess | None:
     """Convert *input_file* to MP3 using ``ffmpeg`` at the requested *quality*.
 
     If the source file is already an MP3 a hard‑link (or a copy if hard‑links are
@@ -597,7 +607,7 @@ def convert(input_file: Path, output_file: Path, bitrate: int) -> ConversionProc
     """
     logger = logging.getLogger(__name__)
 
-    logger.debug("Converting %s into %s", input_file, output_file)
+    logger.debug("Converting %s into %s with parameters: %s", input_file, output_file, settings)
 
     if output_file.exists():
         logger.warning('Destination file %s already exists !', output_file)
@@ -616,17 +626,26 @@ def convert(input_file: Path, output_file: Path, bitrate: int) -> ConversionProc
     # We only transcode the audio track to MP3 and suppress all others metadata
     # since they will be written later by mutagen.
     ffmpeg_cmd = [ "ffmpeg", "-hide_banner", "-loglevel", "error", "-nostdin",
-                    "-i", str(input_file),"-codec:a", "libmp3lame", "-b:a", f"{bitrate}k",
+                    "-i", str(input_file),"-codec:a", "libmp3lame",
                     "-write_xing", "0",  "-map", "0:a:0", "-map_metadata", "-1",
-                    str(output_file)
                 ]
+
+    match settings.mode:
+        case EncodingMode.CBR:
+            ffmpeg_cmd += ["-b:a", f"{settings.value}k"]
+        case EncodingMode.ABR:
+            ffmpeg_cmd += ["-abr", "1", "-b:a", f"{settings.value}k"]
+        case EncodingMode.VBR:
+            ffmpeg_cmd += ["-q:a", str(settings.value)]
+
+    ffmpeg_cmd += [ str(output_file) ]
 
     ffmpeg = subprocess.Popen(ffmpeg_cmd, start_new_session=True)
 
     return ConversionProcess(ffmpeg=ffmpeg)
 
 @typechecked
-def scheduler(conversions: list[Track], nb_threads: int, bitrate: int) -> None:
+def scheduler(conversions: list[Track], nb_threads: int, settings: EncodingSettings) -> None:
     """Run multiple conversions in parallel, respecting *nb_threads*.
 
     A simple process pool is implemented manually to allow graceful handling of
@@ -650,7 +669,7 @@ def scheduler(conversions: list[Track], nb_threads: int, bitrate: int) -> None:
         logger.debug("Filling CPUs with %d conversions", nb_threads)
         while (len(active_tracks) < nb_threads) and (len(conversions) >0):
             track = conversions.pop()
-            conv = convert(track.source, track.dest, bitrate)
+            conv = convert(track.source, track.dest, settings)
             # If we draw an MP3 file we keep on trying to fill processor with conversion
             if conv is None:
                 progress.update(1)
@@ -696,7 +715,7 @@ def scheduler(conversions: list[Track], nb_threads: int, bitrate: int) -> None:
             # If we can admit a new conversion, find a candidate
             while len(active_tracks) < nb_threads and len(conversions)>0 and STOP == 0:
                 track = conversions.pop()
-                conv = convert(track.source, track.dest, bitrate)
+                conv = convert(track.source, track.dest, settings)
                 # If we draw an MP3 file we keep on trying to fill processor with conversion
                 if conv is None:
                     progress.update(1)
@@ -857,9 +876,12 @@ def main():
                         help="Maximal size of each export directory")
     parser.add_argument("-F","--fullsize", action='store_true', dest='full_size',
                         help="Fill first partitions to their maximal size.")
-    parser.add_argument("-B","--bitrate", action='store', dest='bitrate',
-                        type=int, default=128,\
-                        help="MP3 bitrate")
+
+    # Encoding settings
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("--cbr", type=int)
+    group.add_argument("--abr", type=int)
+    group.add_argument("--vbr", type=int)
 
     step+=1
     args = parser.parse_args()
@@ -871,6 +893,8 @@ def main():
 
     if args.nb_threads is None:
         args.nb_threads = os.cpu_count() or 1
+
+    settings = None
 
     logger.debug('Arguments: %s',args)
 
@@ -914,7 +938,7 @@ def main():
     step+=1
     logger.info("There are %d files to convert.", len(conversions))
 
-    scheduler(conversions, args.nb_threads, args.bitrate)
+    scheduler(conversions, args.nb_threads, settings)
 
     if STOP > 0:
         logger.info("Exiting as requested.")
