@@ -506,31 +506,27 @@ file: %s", dest_path)
 
     return res
 
-def _read_synchsafe(value: bytes) -> int:
-    return (
-        (value[0] << 21)
-        | (value[1] << 14)
-        | (value[2] << 7)
-        | value[3]
-    )
-
 def parse_xing(path: Path) -> XingHeader:
     logger = logging.getLogger(__name__)
 
     with path.open("rb") as f:
 
-        #
-        # Skip ID3v2 if present
-        #
-        if f.read(3) == b"ID3":
-            f.read(3)
-            size = _read_synchsafe(f.read(4))
-            f.seek(10 + size)
-        else:
-            f.seek(0)
+        # Searching for the first MPEG synchronization
+        while True:
+            b = f.read(1)
+            if not b:
+                raise ValueError("No MPEG frame")
+            if b[0] != 0xFF:
+                continue
+            b = f.read(1)
+            if not b:
+                raise ValueError("EOF")
+            if (b[0] & 0xE0) == 0xE0:
+                f.seek(-2, 1)
+                break
+            f.seek(-1, 1)
 
         frame_offset = f.tell()
-
         header = int.from_bytes(f.read(4), "big")
 
         if (header >> 21) != 0x7FF:
