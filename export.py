@@ -515,6 +515,8 @@ def _read_synchsafe(value: bytes) -> int:
     )
 
 def parse_xing(path: Path) -> XingHeader:
+    logger = logging.getLogger(__name__)
+
     with path.open("rb") as f:
 
         #
