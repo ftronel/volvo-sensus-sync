@@ -1,0 +1,32 @@
+[project]
+name = "volvo-sensus-sync"
+version = "1.0.0"
+description = "Convert and synchronize a music library for Volvo Sensus"
+authors = [
+    {name = "Frédéric Tronel"}
+]
+license = {text = "GPL"}
+readme = "README.md"
+requires-python = ">=3.11,<4"
+dependencies = [
+    "tqdm (>=4.70.0,<5.0.0)",
+    "mutagen (>=1.48.1,<2.0.0)",
+    "coloredlogs (>=15.0.1,<16.0.0)",
+    "typeguard (>=4.6.0,<5.0.0)"
+]
+packages = [
+    { include = "volvo_sensus_sync", from = "src" }
+]
+
+[project.scripts]
+volvo-sensus-sync = "volvo_sensus_sync.cli:main"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.16.2"
+mypy = "^2.3.0"
+pytest = "^9.1.1"
+

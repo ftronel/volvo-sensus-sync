@@ -1,4 +1,0 @@
-coloredlogs
-mutagen
-tqdm
-typeguard
