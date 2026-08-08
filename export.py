@@ -100,6 +100,7 @@ done
     exit 1
 }
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "$0")" && pwd)"
 
 copy()
 {
@@ -110,10 +111,11 @@ copy()
 
 
 
-while IFS="$(printf '\t')" read -r src
+while IFS="$(printf '\t')" read -r RELSRC
 do
-    dst="$DESTINATION/$src"
-    copy "$src" "$dst"
+    SRC="${SCRIPT_DIR}/${RELSRC}"
+    DST="${DESTINATION}/${RELSRC}"
+    copy "${SRC}" "${DST}"
 done <<'__SYNC_PLAN__'
 """
 
