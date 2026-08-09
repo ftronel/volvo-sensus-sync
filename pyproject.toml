@@ -5,7 +5,7 @@ description = "Convert and synchronize a music library for Volvo Sensus"
 authors = [
     {name = "Frédéric Tronel"}
 ]
-license = {text = "GPL"}
+license = {text = "GPL-2.0-or-later"}
 readme = "README.md"
 requires-python = ">=3.11,<4"
 dependencies = [

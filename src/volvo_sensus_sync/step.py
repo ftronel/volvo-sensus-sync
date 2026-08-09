@@ -1,5 +1,8 @@
-from enum import IntEnum
+# SPDX-License-Identifier: GPL-2.0-or-later
+#
+# Copyright (C) 2026 Frédéric Tronel
 
+from enum import IntEnum
 
 class Step(IntEnum):
     """Enumeration describing the current processing step.

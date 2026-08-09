@@ -1,3 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+#
+# Copyright (C) 2026 Frédéric Tronel
+
+
 import re
 import unicodedata
 from pathlib import Path
