@@ -4,11 +4,10 @@ import os
 from tqdm import tqdm
 from typeguard import typechecked
 
-
-from .track import Track
-from .system import STOP
 from .convert import convert
 from .mp3 import EncodingSettings
+from .system import STOP
+from .track import Track
 
 
 @typechecked

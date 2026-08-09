@@ -1,21 +1,21 @@
-import logging
 import argparse
-import signal
-from pathlib import Path
-from math import ceil
+import logging
 import os
+import signal
+from math import ceil
+from pathlib import Path
 
 import coloredlogs
 from typeguard import typechecked
 
-from .system import sigint_handler
+from .library import determine_conversions, get_audio_list, get_metadata
 from .mp3 import EncodingMode, EncodingSettings
-from .system import check_binaries, STOP
-from .library import get_audio_list, get_metadata, determine_conversions
+from .partition import create_partitions, find_cuts, mp3_total_size, stats_by_artist
 from .scheduler import scheduler
-from .partition import mp3_total_size, stats_by_artist, find_cuts, create_partitions
-from .utils import  sort_artist_path
 from .step import step
+from .system import STOP, check_binaries, sigint_handler
+from .utils import sort_artist_path
+
 
 @typechecked
 def main() -> int:

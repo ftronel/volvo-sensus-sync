@@ -4,8 +4,7 @@ from shutil import which
 
 from typeguard import typechecked
 
-from .step import step, Step
-
+from .step import Step, step
 
 STOP = 0
 

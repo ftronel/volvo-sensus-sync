@@ -1,6 +1,6 @@
 import re
-from pathlib import Path
 import unicodedata
+from pathlib import Path
 
 from typeguard import typechecked
 

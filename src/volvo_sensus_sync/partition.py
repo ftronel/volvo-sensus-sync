@@ -5,6 +5,7 @@ from typeguard import typechecked
 
 from .syncplan import PLANSH
 
+
 @typechecked
 def mp3_total_size(export_dir: Path) -> int:
     """Calculate the total size (in bytes) of all MP3 files under *export_dir*.

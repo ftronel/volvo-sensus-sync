@@ -1,8 +1,8 @@
-import sys
 import logging
+import sys
 from dataclasses import dataclass
-from pathlib import Path
 from enum import IntEnum
+from pathlib import Path
 
 from mutagen.mp3 import MP3
 

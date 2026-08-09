@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from mutagen.id3 import ID3, TIT2, TALB, TPE1, TRCK, TPOS, ID3NoHeaderError
+from mutagen.id3 import ID3, TALB, TIT2, TPE1, TPOS, TRCK, ID3NoHeaderError
 
 from .convert import ConversionProcess
 

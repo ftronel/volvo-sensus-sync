@@ -1,13 +1,14 @@
-from dataclasses import dataclass
-import subprocess
-from pathlib import Path
 import logging
 import shutil
+import subprocess
+from dataclasses import dataclass
+from pathlib import Path
 
-from typeguard import typechecked
 from mutagen import File
+from typeguard import typechecked
 
-from .mp3 import check_sensus_compatibility, EncodingSettings, EncodingMode
+from .mp3 import EncodingMode, EncodingSettings, check_sensus_compatibility
+
 
 @dataclass(slots=True)
 class ConversionProcess:

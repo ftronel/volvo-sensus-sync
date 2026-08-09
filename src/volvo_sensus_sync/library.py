@@ -1,12 +1,12 @@
-from pathlib import Path
 import logging
+from pathlib import Path
 
-from typeguard import typechecked
-from tqdm import tqdm
 from mutagen import File, MutagenError
+from tqdm import tqdm
+from typeguard import typechecked
 
-from .utils import sanitize
 from .track import Track
+from .utils import sanitize
 
 AUDIO_EXTENSIONS = { ".mp3", ".flac", ".wav", ".ogg", ".m4a", ".aac", ".wma",
                     ".opus", ".aiff", ".alac" }
@@ -87,7 +87,7 @@ def get_metadata(files: list[Path]) -> dict[str,dict[str,dict[int,list[Track]]]]
         albums = res[artist]
         if album not in albums:
             albums[album] = {}
-            for d in range(0, nb_discs):
+            for d in range(nb_discs):
                 albums[album][d+1] = []
         discs = albums[album]
         if disc_id not in discs:
@@ -118,7 +118,7 @@ def determine_conversions(audios: dict[str,dict[str,dict[int,list[Track]]]],
     logger = logging.getLogger(__name__)
     res = []
 
-    for artist in audios.keys():
+    for artist in audios:
         logger.debug("Considering artist %s", artist)
         path1 = f"{export_dir}/{artist}"
         dest = Path(path1)
