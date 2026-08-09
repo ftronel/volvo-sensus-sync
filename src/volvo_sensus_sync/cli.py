@@ -52,11 +52,11 @@ def main() -> int:
 
     # Encoding settings
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument("--cbr", type=int, dest="bitrate",
+    group.add_argument("--cbr", type=int, 
                        help="Bitrate for CBR encoding (in kbits/s).")
-    group.add_argument("--abr", type=int, dest="bitrate",
+    group.add_argument("--abr", type=int,
                        help="Bitrate for ABR encoding (in kbits/s).")
-    group.add_argument("--vbr", type=int, dest="quality",
+    group.add_argument("--vbr", type=int, 
                        help="Quality for VBR encoding [0-9].")
 
     step+=1
@@ -71,12 +71,12 @@ def main() -> int:
         args.nb_threads = os.cpu_count() or 1
 
     if args.cbr is not None:
-        settings = EncodingSettings(EncodingMode.CBR, args.bitrate)
+        settings = EncodingSettings(EncodingMode.CBR, args.cbr)
     elif args.abr is not None:
-        settings = EncodingSettings(EncodingMode.ABR, args.bitrate)
+        settings = EncodingSettings(EncodingMode.ABR, args.abr)
     elif args.vbr is not None:
-        if args.quality >= 0 and args.quality <=9:
-            settings = EncodingSettings(EncodingMode.VBR, args.quality)
+        if args.vbr >= 0 and args.vbr <=9:
+            settings = EncodingSettings(EncodingMode.VBR, args.vbr)
         else:
             logger.error("VBR quality must be in interval [0-9]")
             return -1
