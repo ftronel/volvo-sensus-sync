@@ -63,8 +63,7 @@ def find_cuts(stats: dict[Path, int], max_size:int, nb_parts: int) -> list[list[
     res = []
     part = []
     total = 0
-    for artist in stats:
-        size = stats[artist]
+    for artist, size in stats.items():
         if total+size > max_size:
             if len(part)>0:
                 total = 0

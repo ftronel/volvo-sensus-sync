@@ -118,7 +118,7 @@ def determine_conversions(audios: dict[str,dict[str,dict[int,list[Track]]]],
     logger = logging.getLogger(__name__)
     res = []
 
-    for artist in audios:
+    for artist, albums in audios.items():
         logger.debug("Considering artist %s", artist)
         path1 = f"{export_dir}/{artist}"
         dest = Path(path1)
@@ -127,7 +127,6 @@ def determine_conversions(audios: dict[str,dict[str,dict[int,list[Track]]]],
             continue
         if not dest.exists():
             dest.mkdir()
-        albums = audios[artist]
         for album in albums:
             logger.debug("Considering album %s", album)
             path2 = f"{path1}/{album}"
@@ -139,7 +138,7 @@ def determine_conversions(audios: dict[str,dict[str,dict[int,list[Track]]]],
                 dest.mkdir()
             discs = albums[album]
             nb_discs = len(discs.keys())
-            for disc in discs.keys():
+            for disc in discs:
                 logger.debug("Considering disc %d", disc)
                 if nb_discs > 1:
                     path3 = f"{path2}/Disc {disc}"

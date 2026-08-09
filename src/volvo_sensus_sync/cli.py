@@ -144,7 +144,7 @@ def main() -> int:
     if args.full_size:
         ideal_size = args.max_dir_size
     else:
-        ideal_size = int(ceil(size/args.number_dirs))
+        ideal_size = ceil(size/args.number_dirs)
     logger.info("We are seeking %d directories of %d bytes each.", args.number_dirs, ideal_size)
 
     step+=1
