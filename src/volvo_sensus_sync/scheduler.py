@@ -27,8 +27,8 @@ def scheduler(conversions: list[Track], nb_threads: int, settings: EncodingSetti
     logger = logging.getLogger(__name__)
 
     tracks_by_pid = {}
-    active_tracks = set()
-    errors = set()
+    active_tracks: set[Track] = set()
+    errors: set[Track] = set()
     with tqdm(total=len(conversions), desc="Conversions", unit="Track") as progress:
         progress.set_postfix(active=len(active_tracks), errors=len(errors))
         # Fill up the buffer with nb_threads conversions

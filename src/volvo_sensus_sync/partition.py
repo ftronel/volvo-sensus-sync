@@ -61,7 +61,7 @@ def find_cuts(stats: dict[Path, int], max_size:int, nb_parts: int) -> list[list[
     logger = logging.getLogger(__name__)
 
     res = []
-    part = []
+    part : list[Path] = []
     total = 0
     for artist, size in stats.items():
         if total+size > max_size:
