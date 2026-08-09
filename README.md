@@ -28,7 +28,7 @@ Ces limitations sont compréhensibles pour un système conçu il y a plus d'une 
 En revanche, une seconde difficulté s'est révélée beaucoup plus surprenante : tous les fichiers MP3 ne sont pas acceptés, y compris lorsqu'ils sont parfaitement conformes au standard MPEG Layer III.
 
 
-À l'époque, plusieurs (https://ffmpeg.org/pipermail/ffmpeg-user/2014-October/023931.html?utm_source=chatgpt.com)[discussions] sur Internet rapportaient que les fichiers produits directement par LAME étaient lus sans difficulté par le système Sensus, contrairement à certains fichiers produits par FFmpeg.
+À l'époque, plusieurs [discussions](https://ffmpeg.org/pipermail/ffmpeg-user/2014-October/023931.html?utm_source=chatgpt.com) sur Internet rapportaient que les fichiers produits directement par LAME étaient lus sans difficulté par le système Sensus, contrairement à certains fichiers produits par FFmpeg.
 Une discussion de la liste de diffusion FFmpeg datant de 2014 décrit exactement ce comportement sur un Volvo Sensus 3.0, sans toutefois en identifier la cause.
 J'avais fini par produire un ensemble de scripts Bash utilisant conjointement **FFmpeg** et **LAME** afin d'obtenir des fichiers compatibles avec le Sensus. 
 Ces scripts répartissaient également automatiquement la bibliothèque musicale sur deux partitions de taille équivalente.
