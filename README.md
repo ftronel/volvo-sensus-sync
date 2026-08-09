@@ -2,144 +2,137 @@
 
 ## Introduction
 
-**Volvo Sensus Sync** est un outil permettant de transcoder une bibliothèque musicale vers des fichiers MP3 compatibles avec le système multimédia **Volvo Sensus**.
+**Volvo Sensus Sync** is a tool designed to transcode an existing music library into MP3 files compatible with the **Volvo Sensus** infotainment system.
 
-Le logiciel analyse automatiquement une collection de fichiers audio (FLAC, MP3, etc.), convertit uniquement les morceaux nécessaires, réécrit leurs métadonnées, répartit la bibliothèque sur plusieurs partitions de taille donnée et génère un plan de synchronisation permettant de recopier les fichiers sur une clé USB dans un ordre compatible avec le firmware du véhicule.
+The software automatically analyzes a collection of audio files (FLAC, MP3, etc.), converts only the tracks that require transcoding, rewrites their metadata, distributes the resulting library across multiple partitions of a configurable size, and generates synchronization scripts that copy the files onto a USB drive in an order compatible with the vehicle's firmware.
 
-Le projet est né de l'étude des nombreuses contraintes du lecteur multimédia Volvo Sensus, dont certaines ne semblent pas être documentées.
-
----
-
-# Genèse du projet
-
-Ce projet est né lorsque j'ai fait l'acquisition d'une **Volvo V40 millésime 2012** équipée du système multimédia **Sensus**.
-
-Souhaitant écouter ma bibliothèque musicale depuis une clé USB, j'ai rapidement découvert que le lecteur était beaucoup plus exigeant que ne le laissait penser la documentation.
-Celle-ci indique simplement que les fichiers MP3 sont supportés, sans préciser les nombreuses contraintes réellement imposées par le firmware.
-
-Les premières difficultés rencontrées furent relativement classiques :
-
-* seuls les systèmes de fichiers **FAT32** sont reconnus ;
-* une table de partitions **MBR** est nécessaire ;
-* une organisation en deux partitions d'environ 16 Go chacune fonctionne parfaitement.
-
-Ces limitations sont compréhensibles pour un système conçu il y a plus d'une décennie.
-
-En revanche, une seconde difficulté s'est révélée beaucoup plus surprenante : tous les fichiers MP3 ne sont pas acceptés, y compris lorsqu'ils sont parfaitement conformes au standard MPEG Layer III.
-
-
-À l'époque, plusieurs [discussions](https://ffmpeg.org/pipermail/ffmpeg-user/2014-October/023931.html?utm_source=chatgpt.com) sur Internet rapportaient que les fichiers produits directement par LAME étaient lus sans difficulté par le système Sensus, contrairement à certains fichiers produits par FFmpeg.
-Une discussion de la liste de diffusion FFmpeg datant de 2014 décrit exactement ce comportement sur un Volvo Sensus 3.0, sans toutefois en identifier la cause.
-J'avais fini par produire un ensemble de scripts Bash utilisant conjointement **FFmpeg** et **LAME** afin d'obtenir des fichiers compatibles avec le Sensus. 
-Ces scripts répartissaient également automatiquement la bibliothèque musicale sur deux partitions de taille équivalente.
-
-Malheureusement, ces scripts étaient uniquement stockés sur un SSD qui est tombé brutalement en panne.
-Le travail réalisé a donc été entièrement perdu.
-
-Pendant plusieurs années, cette situation n'a pas réellement posé problème, les 32 Go de musique déjà disponibles étant largement suffisants pour les longs trajets.
+This project originated from an investigation into the many undocumented limitations of the Volvo Sensus media player.
 
 ---
 
-# Réécriture en Python
+# Project background
 
-Récemment, souhaitant mettre à jour cette bibliothèque musicale avec de nouveaux albums, j'ai décidé de repartir de zéro.
+This project started after I purchased a **2012 Volvo V40** equipped with the **Volvo Sensus** infotainment system.
 
-Plutôt que de réécrire les anciens scripts Bash, j'ai choisi de développer un véritable projet Python, plus modulaire et plus facilement maintenable.
+When I first tried to listen to my music collection from a USB flash drive, I quickly discovered that the media player was far more restrictive than the official documentation suggested. While the documentation simply states that MP3 files are supported, it does not mention the numerous practical limitations imposed by the firmware.
 
-Le développement a été réalisé avec l'assistance de **ChatGPT**, principalement pour discuter de l'architecture du projet, comparer différentes bibliothèques Python, explorer le format MP3 et accélérer certaines tâches de développement. 
-La conception générale, les expérimentations ainsi que toutes les validations sur le véhicule ont cependant été réalisées manuellement.
+The first issues were fairly conventional:
 
-Cette réécriture a également été l'occasion de reprendre méthodiquement toutes les expérimentations effectuées plusieurs années auparavant afin de mieux comprendre les contraintes réelles du firmware Volvo Sensus.
+* only **FAT32** file systems are recognized;
+* an **MBR** partition table is required;
+* a USB drive split into two partitions of approximately 16 GB each works reliably.
+
+These limitations are understandable for a system originally designed more than a decade ago.
+
+A much more surprising discovery, however, was that not all MP3 files were accepted, even when they fully complied with the MPEG Layer III specification.
+
+At the time, several online discussions reported that MP3 files encoded directly with **LAME** worked flawlessly on Volvo Sensus, while some files produced by **FFmpeg** did not. One discussion on the FFmpeg mailing list from 2014 reports exactly this behavior on a Volvo Sensus 3.0 system, although the underlying cause remained unidentified.
+
+I eventually wrote a collection of Bash scripts combining **FFmpeg** and **LAME** to generate MP3 files accepted by the Sensus system. Those scripts also split the music library into two partitions of roughly equal size.
+
+Unfortunately, those scripts were stored only on an SSD that failed unexpectedly, and all that work was lost.
+
+For several years this was not a major issue, since 32 GB of music was already more than enough for long trips.
 
 ---
 
-# Investigations sur le format MP3
+# Python rewrite
 
-L'une des découvertes les plus intéressantes concerne les fichiers produits par **FFmpeg**.
+Recently, after purchasing additional albums, I decided to rebuild the entire workflow from scratch.
 
-Lorsqu'il encode un MP3 à l'aide de **libmp3lame**, FFmpeg écrit par défaut un en-tête **Xing/LAME** décrivant les caractéristiques de l'encodage. 
-Cet en-tête est normalement utilisé pour améliorer le calcul de la durée du morceau et la précision des déplacements ("seek"), notamment en VBR.
+Instead of recreating the original Bash scripts, I chose to develop a proper Python application that would be easier to maintain, extend and publish.
 
-En comparant minutieusement les fichiers générés par FFmpeg et par LAME (analyse hexadécimale, `mediainfo`, `mp3guessenc`, etc.), il est apparu que :
+The project was developed with the assistance of **ChatGPT**, mainly to discuss software architecture, evaluate Python libraries, explore the MP3 format and accelerate some implementation tasks. The overall design, reverse engineering work, experiments and validation on the actual vehicle were carried out manually.
 
-* le flux audio MPEG produit par les deux encodeurs est pratiquement identique ;
-* la principale différence réside dans la manière dont FFmpeg écrit l'en-tête Xing/LAME.
+This rewrite also provided an opportunity to revisit every experiment performed years earlier in order to better understand the real limitations of the Volvo Sensus firmware.
 
-Le firmware Volvo Sensus refuse systématiquement les fichiers contenant cet en-tête généré par FFmpeg.
+---
 
-En revanche, les mêmes fichiers deviennent immédiatement compatibles lorsqu'ils sont produits avec l'option :
+# Investigating the MP3 format
+
+One of the most interesting findings concerns MP3 files produced by **FFmpeg**.
+
+When encoding with **libmp3lame**, FFmpeg writes a **Xing/LAME** header describing the encoding parameters. This header is normally used to improve duration estimation and seeking accuracy, especially for variable bitrate (VBR) files.
+
+After carefully comparing files generated by FFmpeg and by the standalone LAME encoder (hexadecimal analysis, `mediainfo`, `mp3guessenc`, etc.), the following observations emerged:
+
+* the MPEG audio stream produced by both encoders is virtually identical;
+* the main difference lies in the way FFmpeg writes the Xing/LAME header.
+
+The Volvo Sensus firmware consistently rejects MP3 files containing FFmpeg's default Xing header.
+
+However, the very same files become immediately compatible when FFmpeg is instructed to disable the Xing header:
 
 ```bash
 -write_xing 0
 ```
 
-Cette option supprime complètement l'en-tête Xing.
+This option completely suppresses the Xing header.
 
-Les essais réalisés montrent également que le système Sensus lit correctement des fichiers :
+Extensive testing also showed that the Sensus player correctly handles:
 
-* CBR ;
-* ABR ;
-* VBR ;
+* CBR;
+* ABR;
+* VBR;
 
-même en l'absence complète d'en-tête Xing, tout en conservant un déplacement précis à l'intérieur des morceaux.
+encoded files **without** a Xing header, while still providing accurate seeking within the track.
 
-Cette découverte permet de simplifier considérablement le processus d'encodage : il n'est plus nécessaire d'utiliser conjointement FFmpeg et LAME.
-
----
-
-# Comportements observés du Volvo Sensus
-
-Au cours du développement de ce projet, les comportements suivants ont été observés expérimentalement sur un Volvo V40 équipé du système Sensus.
-
-Les résultats ci-dessous ne constituent pas des spécifications officielles, mais des observations reproductibles réalisées lors des essais.
-
-* seuls les systèmes de fichiers **FAT32** sont reconnus ;
-* une table de partitions **MBR** est nécessaire ;
-* une organisation en deux partitions d'environ 16 Go fonctionne correctement ;
-* les fichiers MP3 produits par FFmpeg avec l'en-tête Xing par défaut sont refusés ;
-* les mêmes fichiers sont acceptés lorsqu'ils sont produits avec `-write_xing 0` ;
-* les encodages **CBR**, **ABR** et **VBR** sont correctement lus sans en-tête Xing ;
-* le déplacement ("seek") fonctionne également correctement sans cet en-tête ;
-* l'ordre de lecture des morceaux ne dépend ni du numéro de piste, ni du nom du fichier, ni des tags ID3.
-
-Le dernier point est probablement le plus surprenant.
-
-Les expérimentations montrent que le Sensus semble parcourir les entrées du répertoire FAT dans leur ordre physique de création.
-Pour garantir un ordre de lecture cohérent, le logiciel génère donc un plan de synchronisation qui crée les fichiers dans l'ordre souhaité avant d'y recopier leur contenu.
+This discovery significantly simplifies the encoding pipeline, making it unnecessary to invoke both FFmpeg and the standalone LAME encoder.
 
 ---
 
-# Fonctionnement
+# Observed Volvo Sensus behavior
 
-Le logiciel suit les étapes suivantes :
+During the development of this project, the following behaviors were experimentally observed on a **2012 Volvo V40** equipped with the Volvo Sensus infotainment system.
+
+These observations should not be considered official specifications, but reproducible experimental results.
+
+* only **FAT32** file systems are recognized;
+* an **MBR** partition table is required;
+* two partitions of approximately 16 GB each work correctly;
+* MP3 files generated by FFmpeg using its default Xing header are rejected;
+* the same files become compatible when encoded with `-write_xing 0`;
+* **CBR**, **ABR** and **VBR** encodings all work correctly without a Xing header;
+* seeking remains fully functional without the Xing header;
+* playback order does **not** follow the track number, filename or ID3 tags.
+
+The last observation is probably the most surprising.
+
+Experiments suggest that the Sensus firmware iterates through directory entries in their physical FAT creation order. To ensure a meaningful playback sequence, the software generates synchronization scripts that create the destination files in the desired order before copying their contents.
+
+---
+
+# How it works
+
+The software follows the pipeline below:
 
 ```text
-Bibliothèque audio
-        │
-        ▼
-Analyse des métadonnées
-        │
-        ▼
-Détermination des conversions nécessaires
-        │
-        ▼
-Répartition équilibrée sur les partitions
-        │
-        ▼
-Transcodage FFmpeg
+Audio library
+      │
+      ▼
+Metadata analysis
+      │
+      ▼
+Determine required conversions
+      │
+      ▼
+Balanced partition assignment
+      │
+      ▼
+FFmpeg transcoding
 (-write_xing 0)
-        │
-        ▼
-Réécriture des tags ID3v2.3 (Mutagen)
-        │
-        ▼
-Génération du plan de synchronisation
-        │
-        ▼
-Copie sur la clé USB
+      │
+      ▼
+Rewrite ID3v2.3 tags (Mutagen)
+      │
+      ▼
+Generate synchronization scripts
+      │
+      ▼
+Copy files to USB drive
 ```
 
-Les métadonnées sont volontairement supprimées pendant le transcodage (`-map_metadata -1`), puis réécrites avec **Mutagen** au format **ID3v2.3**, afin de produire des fichiers aussi simples et compatibles que possible.
+Metadata are deliberately removed during transcoding (`-map_metadata -1`) and then recreated using **Mutagen** in the **ID3v2.3** format in order to maximize compatibility with the Volvo Sensus firmware.
 
 ---
 
@@ -156,7 +149,7 @@ poetry run volvo-sensus-sync --help
 
 ---
 
-# Utilisation
+# Usage
 
 ```bash
 poetry run volvo-sensus-sync \
@@ -167,15 +160,15 @@ poetry run volvo-sensus-sync \
     --abr 112
 ```
 
-Le réglage **ABR 112 kb/s** constitue un bon compromis entre qualité sonore, taille des fichiers et capacité d'une clé USB de 32 Go.
+In practice, **ABR 112 kb/s** provides an excellent compromise between audio quality, storage requirements and the capacity of a 32 GB USB flash drive.
 
 ---
 
-# Préparation de la clé USB
+# Preparing the USB drive
 
-Créer une table de partitions MBR puis formater les partitions en FAT32.
+Create an MBR partition table and format the partitions as FAT32.
 
-Par exemple :
+For example:
 
 ```bash
 sudo fdisk /dev/sdX
@@ -184,7 +177,7 @@ sudo mkfs.vfat -n DISK-1 /dev/sdX1
 sudo mkfs.vfat -n DISK-2 /dev/sdX2
 ```
 
-Après avoir réinséré la clé USB et vérifié qu'elle est montée, exécuter les scripts de synchronisation générés :
+After reconnecting the USB drive and ensuring that it has been mounted, execute the generated synchronization scripts:
 
 ```bash
 bash /my/export/1/sync-partitions.sh -d /media/.../DISK-1
@@ -192,12 +185,13 @@ bash /my/export/1/sync-partitions.sh -d /media/.../DISK-1
 bash /my/export/2/sync-partitions.sh -d /media/.../DISK-2
 ```
 
-Les scripts de synchronisation sont volontairement séparés de la phase de transcodage.
-Cette approche permet de préparer l'export sur une machine puissante (NAS, serveur...) puis d'effectuer ultérieurement la copie sur la clé USB depuis un autre ordinateur, tout en conservant un contrôle précis de l'ordre de création des fichiers.
+Synchronization is intentionally separated from transcoding.
+
+This allows the MP3 library to be generated on a powerful machine (NAS, workstation, server, etc.) while the final copy onto the USB drive can later be performed on another computer. More importantly, it guarantees complete control over the physical file creation order required by the Volvo Sensus firmware.
 
 ---
 
-# Technologies utilisées
+# Technologies
 
 * Python 3
 * Poetry
@@ -207,9 +201,8 @@ Cette approche permet de préparer l'export sur une machine puissante (NAS, serv
 
 ---
 
-# Remerciements
+# Acknowledgements
 
-Ce projet est le résultat d'une longue série d'expérimentations destinées à comprendre le comportement réel du système multimédia Volvo Sensus.
+This project is the result of a long series of experiments aimed at understanding the actual behavior of the Volvo Sensus infotainment system.
 
-Si vous obtenez des résultats différents sur d'autres véhicules, millésimes ou versions du firmware, les retours d'expérience seront les bienvenus afin d'améliorer la documentation et la compatibilité du projet.
-
+If you obtain different results with other Volvo models, model years or firmware versions, contributions and feedback are very welcome. They will help improve both the software and the documentation.
