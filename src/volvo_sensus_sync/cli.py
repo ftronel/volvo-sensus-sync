@@ -52,11 +52,11 @@ def main() -> int:
 
     # Encoding settings
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument("--cbr", type=int, 
+    group.add_argument("--cbr", type=int,
                        help="Bitrate for CBR encoding (in kbits/s).")
     group.add_argument("--abr", type=int,
                        help="Bitrate for ABR encoding (in kbits/s).")
-    group.add_argument("--vbr", type=int, 
+    group.add_argument("--vbr", type=int,
                        help="Quality for VBR encoding [0-9].")
 
     step+=1
