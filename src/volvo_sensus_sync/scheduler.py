@@ -2,6 +2,13 @@
 #
 # Copyright (C) 2026 Frédéric Tronel
 
+"""
+Parallel conversion scheduler.
+
+This module schedules multiple FFmpeg conversion processes while limiting
+the maximum number of concurrent jobs.
+"""
+
 import logging
 import os
 

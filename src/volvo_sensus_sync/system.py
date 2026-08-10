@@ -2,6 +2,11 @@
 #
 # Copyright (C) 2026 Frédéric Tronel
 
+"""
+System-related utilities.
+
+This module contains signal handling and external dependency checks.
+"""
 
 import logging
 import sys

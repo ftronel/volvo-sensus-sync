@@ -2,6 +2,12 @@
 #
 # Copyright (C) 2026 Frédéric Tronel
 
+"""
+Command-line interface for Volvo Sensus Sync.
+
+This module parses command-line arguments and orchestrates the complete
+export process.
+"""
 
 import argparse
 import logging

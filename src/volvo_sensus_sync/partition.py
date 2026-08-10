@@ -2,6 +2,13 @@
 #
 # Copyright (C) 2026 Frédéric Tronel
 
+"""
+Music library partitioning.
+
+This module computes how the exported music library should be split into
+multiple destination directories according to the requested size limits.
+"""
+
 import logging
 from pathlib import Path
 

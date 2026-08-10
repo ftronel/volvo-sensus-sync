@@ -2,6 +2,13 @@
 #
 # Copyright (C) 2026 Frédéric Tronel
 
+"""
+Audio conversion routines.
+
+This module determines whether tracks require transcoding and invokes
+FFmpeg to produce Volvo Sensus compatible MP3 files.
+"""
+
 import logging
 import shutil
 import subprocess

@@ -81,4 +81,3 @@ do
     copy "${SRC}" "${DST}"
 done <<'__SYNC_PLAN__'
 """
-

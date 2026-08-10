@@ -2,6 +2,13 @@
 #
 # Copyright (C) 2026 Frédéric Tronel
 
+"""
+MP3 parsing and compatibility checks.
+
+This module provides utilities for parsing MPEG and Xing headers and
+determining whether an existing MP3 file is compatible with the Volvo
+Sensus firmware.
+"""
 
 import logging
 import sys
@@ -14,18 +21,24 @@ from mutagen.mp3 import MP3
 
 @dataclass(slots=True)
 class XingHeader:
+    """Information extracted from an MP3 Xing/LAME header."""
+
     present: bool
     magic: str | None = None
     is_lame: bool = False
     encoder: str | None = None
 
 class EncodingMode(IntEnum):
+    """ MP3 encoding modes """
+
     CBR = 0
     ABR = 1
     VBR = 2
 
 @dataclass(slots=True)
 class EncodingSettings:
+    """ MP3 encoding settings """
+
     mode: EncodingMode
     value: int
 

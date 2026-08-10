@@ -2,6 +2,9 @@
 #
 # Copyright (C) 2026 Frédéric Tronel
 
+"""
+General utility functions used throughout the project.
+"""
 
 import re
 import unicodedata
