@@ -12,8 +12,6 @@ from pathlib import Path
 
 from typeguard import typechecked
 
-logger = logging.getLogger(__name__)
-
 INVALID = r'[<>:"/\\|?*\x00-\x1F]'
 
 @typechecked
