@@ -16,6 +16,8 @@ from typeguard import typechecked
 
 from .step import Step, step
 
+logger = logging.getLogger(__name__)
+
 STOP = 0
 
 def sigint_handler(signum, frame):
@@ -27,7 +29,6 @@ def sigint_handler(signum, frame):
     """
     global STOP
 
-    logger = logging.getLogger(__name__)
     if step != Step.CONVERSION:
         sys.exit(-1)
     STOP += 1
@@ -58,8 +59,6 @@ def check_binaries() -> None:
       that missing dependencies are caught early rather than failing during a
       conversion job.
     """
-    logger = logging.getLogger(__name__)
-
     binaries = [ 'ffmpeg']
     for binary in binaries:
         if which(binary) is None:

@@ -18,6 +18,7 @@ from pathlib import Path
 
 from mutagen.mp3 import MP3
 
+logger = logging.getLogger(__name__)
 
 @dataclass(slots=True)
 class XingHeader:
@@ -43,8 +44,6 @@ class EncodingSettings:
     value: int
 
 def parse_xing(path: Path) -> XingHeader:
-    logger = logging.getLogger(__name__)
-
     with path.open("rb") as f:
 
         # Searching for the first MPEG synchronization

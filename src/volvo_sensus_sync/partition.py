@@ -16,6 +16,7 @@ from typeguard import typechecked
 
 from .syncplan import PLANSH
 
+logger = logging.getLogger(__name__)
 
 @typechecked
 def mp3_total_size(export_dir: Path) -> int:
@@ -69,8 +70,6 @@ def find_cuts(stats: dict[Path, int], max_size:int, nb_parts: int) -> list[list[
         A list of partitions (each a list of artist :class:`Path`s) or ``None`` if
         a satisfactory partitioning is impossible.
     """
-    logger = logging.getLogger(__name__)
-
     res = []
     part : list[Path] = []
     total = 0
@@ -109,8 +108,6 @@ def create_partitions(export: Path, all_tracks: Path, partitions: list[list[Path
             collection.
         partitions: List of partitions returned by :func:`find_cuts`.
     """
-    logger = logging.getLogger(__name__)
-
     part_num = 1
     for part in partitions:
         part_path = export / f"{part_num}"

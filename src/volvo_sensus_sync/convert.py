@@ -21,6 +21,8 @@ from typeguard import typechecked
 from .mp3 import EncodingMode, EncodingSettings, check_sensus_compatibility
 
 
+logger = logging.getLogger(__name__)
+
 @dataclass(slots=True)
 class ConversionProcess:
     """
@@ -67,8 +69,6 @@ def convert(input_file: Path, output_file: Path,
         ``None`` if no conversion was necessary, otherwise a :class:`subprocess.Popen`
         object representing the running ``ffmpeg`` process.
     """
-    logger = logging.getLogger(__name__)
-
     logger.debug("Converting %s into %s with parameters: %s", input_file, output_file, settings)
 
     if output_file.exists():

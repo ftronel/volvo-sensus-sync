@@ -20,6 +20,7 @@ from .mp3 import EncodingSettings
 from .system import STOP
 from .track import Track
 
+logger = logging.getLogger(__name__)
 
 @typechecked
 def scheduler(conversions: list[Track], nb_threads: int, settings: EncodingSettings) -> None:
@@ -35,8 +36,6 @@ def scheduler(conversions: list[Track], nb_threads: int, settings: EncodingSetti
         nb_threads: Maximum number of simultaneous ``ffmpeg`` processes.
         bitrate: Desired MP3 bitrate (passed to :func:`convert`).
     """
-    logger = logging.getLogger(__name__)
-
     tracks_by_pid = {}
     active_tracks: set[Track] = set()
     errors: set[Track] = set()

@@ -13,9 +13,10 @@ from typeguard import typechecked
 from .track import Track
 from .utils import sanitize
 
+logger = logging.getLogger(__name__)
+
 AUDIO_EXTENSIONS = { ".mp3", ".flac", ".wav", ".ogg", ".m4a", ".aac", ".wma",
                     ".opus", ".aiff", ".alac" }
-
 
 @typechecked
 def get_audio_list(root: Path) -> list[Path]:
@@ -28,8 +29,6 @@ def get_audio_list(root: Path) -> list[Path]:
         A list of :class:`~pathlib.Path` objects pointing to files whose suffix
         matches one of :data:`AUDIO_EXTENSIONS`.
     """
-    logger = logging.getLogger(__name__)
-
     res = []
 
     logger.info('Searching for potential audio files')
@@ -59,8 +58,6 @@ def get_metadata(files: list[Path]) -> dict[str,dict[str,dict[int,list[Track]]]]
         where *track_dict* contains the keys ``inode``, ``title``, ``disc``,
         ``nb_discs`` and ``track``.
     """
-    logger = logging.getLogger(__name__)
-
     res = {}
     for inode in tqdm(files):
         try:
@@ -120,7 +117,6 @@ def determine_conversions(audios: dict[str,dict[str,dict[int,list[Track]]]],
         A list of dictionaries, each with at least the keys ``inode``, ``title``,
         ``track`` and a newly added ``to`` (the destination :class:`Path`).
     """
-    logger = logging.getLogger(__name__)
     res = []
 
     for artist, albums in audios.items():

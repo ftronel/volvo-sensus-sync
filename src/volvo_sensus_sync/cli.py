@@ -42,7 +42,12 @@ def main() -> int:
     # Install signal handler
     signal.signal(signal.SIGINT, sigint_handler)
 
-    coloredlogs.install()
+    coloredlogs.install(
+        level="INFO",
+        fmt="%(asctime)s %(levelname)-8s %(name)s.%(funcName)s: %(message)s",
+        datefmt="%H:%M:%S",
+    )
+
     parser = argparse.ArgumentParser()
     parser.add_argument("-v","--verbose", action='store_true', dest='verbose', help="Debug.")
     parser.add_argument("-i","--input", action='store', dest='input_dir', required=True,
