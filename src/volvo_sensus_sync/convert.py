@@ -18,8 +18,8 @@ from pathlib import Path
 from mutagen import File
 from typeguard import typechecked
 
-from .mp3 import EncodingMode, EncodingSettings, check_sensus_compatibility
-
+from .config import EncodingMode, EncodingSettings
+from .mp3 import check_sensus_compatibility
 
 logger = logging.getLogger(__name__)
 

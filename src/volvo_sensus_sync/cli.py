@@ -19,8 +19,8 @@ from pathlib import Path
 import coloredlogs
 from typeguard import typechecked
 
+from .config import EncodingMode, EncodingSettings
 from .library import determine_conversions, get_audio_list, get_metadata
-from .mp3 import EncodingMode, EncodingSettings
 from .partition import create_partitions, find_cuts, mp3_total_size, stats_by_artist
 from .scheduler import scheduler
 from .step import step
