@@ -89,7 +89,7 @@ def convert(input_file: Path, output_file: Path,
     # since they will be written later by mutagen.
     ffmpeg_cmd = [ "ffmpeg", "-hide_banner", "-loglevel", "error", "-nostdin",
                     "-i", str(input_file),"-codec:a", "libmp3lame",
-                    "-write_xing", "0",  "-map", "0:a:0", "-map_metadata", "-1",
+                    "-map", "0:a:0", "-map_metadata", "-1",
                 ]
 
     match settings.mode:

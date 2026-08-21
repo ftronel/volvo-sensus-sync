@@ -83,6 +83,15 @@ def scheduler(conversions: list[Track], nb_threads: int, settings: EncodingSetti
                 if process.successful:
                     active_tracks.remove(track)
                     progress.update(1)
+                    # fix MPEG header
+                    header = track.get_mpeg_header()
+                    if not header.is_sensus_compatible():
+                        header.fix_sensus_compatibility(track.dest, settings)
+                    header = track.get_mpeg_header()
+                    fixed = header.is_sensus_compatible()
+                    if not fixed:
+                        logger.error("Impossible to fix Volvo compatibility of: %s", track.dest)
+                    # Write metadata
                     track.write_tags()
                     logger.debug('Conversion of %s was successful', track)
                 tracks_by_pid.pop(pid)

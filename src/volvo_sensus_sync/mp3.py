@@ -62,15 +62,15 @@ def parse_mpeg_header(path: Path) -> MPEGHeader | None:
 
         version = MPEGVersion((header >> 19) & 0b11)
         layer = MPEGLayer((header >> 17) & 0b11)
-        crc = bool((header >> 15) & 0b1)
-        bitrate = MPEGBitRate((header >> 14) & 0b1111)
+        crc = bool((header >> 16) & 0b1)
+        bitrate1 = MPEGBitRate((header >> 12) & 0b1111)
         samplerate = MPEGSampleRate((header >> 10) & 0b11)
-        padding = bool((header >> 8) & 0b1)
-        private = bool((header >> 7) & 0b1)
+        padding1 = bool((header >> 9) & 0b1)
+        private = bool((header >> 8) & 0b1)
         channel_mode = MPEGChannelMode((header >> 6) & 0b11)
         mode_extension = MPEGModeExtension((header >> 4) & 0b11)
-        cr = bool((header >> 2) & 0b1)
-        original = bool((header >> 1) & 0b1)
+        cr = bool((header >> 3) & 0b1)
+        original = bool((header >> 2) & 0b1)
         emphasis = MPEGEmphasis(header & 0b11)
 
         #
@@ -85,8 +85,11 @@ def parse_mpeg_header(path: Path) -> MPEGHeader | None:
         magic = f.read(4)
 
         if magic not in (b"Xing", b"Info"):
-            # No Xing header
-            return None
+            end = f.tell()
+            length = end-frame_offset
+            return MPEGHeader(length, frame_offset, version, layer, crc, bitrate1, samplerate,
+                              padding1, private, channel_mode, mode_extension, cr, original,
+                              emphasis, side_info, None)
 
         if magic == b"Info":
             encoding = EncodingMode.CBR
@@ -104,7 +107,7 @@ def parse_mpeg_header(path: Path) -> MPEGHeader | None:
         if flags & 0x0002:      # Bytes
             audio_length = read_u32(f)
         if flags & 0x0004:      # TOC
-            toc = f.read(100,1)
+            toc = f.read(100)
         if flags & 0x0008:      # Quality
             quality = read_u32(f)
 
@@ -113,18 +116,17 @@ def parse_mpeg_header(path: Path) -> MPEGHeader | None:
         #       ------  ------  ----------------------------------
         #        00      9       Encoder string
         #        09      1       Revision + VBR method
-        #        0A      1       Lowpass filter
-        #        0B      8       ReplayGain
-        #        13      1       Encoding flags
-        #        14      1       ATH type
-        #        15      1       Bitrate
-        #        16      3       Encoder delay + padding
-        #        19      1       Misc
-        #        1A      1       MP3 gain
-        #        1B      2       Preset / Surround
-        #        1D      4       Music length
-        #        21      2       Music CRC
-        #        23      2       Tag CRC
+        #        10      1       Lowpass filter
+        #        11      8       ReplayGain
+        #        19      1       Encoding flags + ATH flags
+        #        20      1       Bitrate
+        #        21      3       Encoder delay + padding
+        #        24      1       Misc
+        #        25      1       MP3 gain
+        #        26      2       Preset / Surround
+        #        28      4       Music length
+        #        32      2       Music CRC
+        #        34      2       Tag CRC
         encoder = f.read(9).decode("ascii", errors="replace")
         b = read_u8(f)
         revision = b>>4
@@ -132,18 +134,18 @@ def parse_mpeg_header(path: Path) -> MPEGHeader | None:
         lowpass_hz = read_u8(f)*100
         replaygain = f.read(8)
         b = read_u8(f)
-        nspsytune = bool(b&0x1 == 1)
-        nssafejoint = bool(b&0x2 == 2)
-        nogap_prev = bool(b&0x4 == 4)
-        nogap_next = bool(b&0x8 == 8)
-        encoding_flags = EncodingFlags(nspsytune, nssafejoint, nogap_prev, nogap_next)
-        ath_type = read_u8(f)
-        bitrate = read_u8(f)
+        nspsytune = bool(b&0x10 == 0x10)
+        nssafejoint = bool(b&0x20 == 0x20)
+        nogap_next = bool(b&0x40 == 0x40)
+        nogap_prev = bool(b&0x80 == 0x80)
+        ath_type = b&0x0F
+        encoding_flags = EncodingFlags(nspsytune, nssafejoint, nogap_prev, nogap_next, ath_type)
+        bitrate2 = read_u8(f)
         b0 = read_u8(f)
         b1 = read_u8(f)
         b2 = read_u8(f)
         delay = (b0 << 4) | (b1 >> 4)
-        padding = ((b1 & 0x0F) << 8) | b2
+        padding2 = ((b1 & 0x0F) << 8) | b2
         # To decode more carefully
         misc = read_u8(f)
         noise_shaping = misc & 0x03
@@ -156,8 +158,11 @@ def parse_mpeg_header(path: Path) -> MPEGHeader | None:
         music_length = read_u32(f)
         music_crc = read_u16(f)
         tag_crc = read_u16(f)
+        end = f.tell()
+        length = end-frame_offset
+
         lame_tag = LameTag(encoder, revision, vbr_method, lowpass_hz, replaygain, encoding_flags,
-                           ath_type, bitrate, delay, padding, misc, mp3_gain, preset, music_length,
+                           bitrate2, delay, padding2, misc, mp3_gain, preset, music_length,
                            music_crc, tag_crc)
 
         xing_header = XingHeader(
@@ -169,7 +174,7 @@ def parse_mpeg_header(path: Path) -> MPEGHeader | None:
             lame = lame_tag,
             )
 
-        return MPEGHeader(frame_offset, version, layer, crc, bitrate, samplerate, padding, private,
+        return MPEGHeader(length, frame_offset, version, layer, crc, bitrate1, samplerate, padding1, private,
                           channel_mode, mode_extension, cr, original, emphasis, side_info,
                           xing_header)
 
@@ -179,6 +184,4 @@ def check_sensus_compatibility(audio, path) -> bool:
         return False
 
     header = parse_mpeg_header(path)
-    # header must be present and ...
-    return header is not None and header.channel_mode != MPEGChannelMode.JOINT \
-                  and not header.original
+    return header.is_sensus_compatible()

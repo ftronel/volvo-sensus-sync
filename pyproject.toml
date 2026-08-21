@@ -12,7 +12,7 @@ dependencies = [
     "tqdm (>=4.70.0,<5.0.0)",
     "mutagen (>=1.48.1,<2.0.0)",
     "coloredlogs (>=15.0.1,<16.0.0)",
-    "typeguard (>=4.6.0,<5.0.0)"
+    "typeguard (>=4.6.0,<5.0.0)",
 ]
 packages = [
     { include = "volvo_sensus_sync", from = "src" }
