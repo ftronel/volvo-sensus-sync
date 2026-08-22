@@ -207,10 +207,10 @@ class MPEGChannelMode(IntEnum):
     MONO = 3
 
 class MPEGModeExtension(IntEnum):
-    INTENSITY = 0
-    MS = 1
-    INTENSITY_MS = 2
-    RESERVED = 3
+    NONE = 0b00
+    INTENSITY = 0b01
+    MS = 0b10
+    INTENSITY_MS = 0b11
 
 class MPEGEmphasis(IntEnum):
     NONE = 0
@@ -247,9 +247,10 @@ class MPEGHeader:
         header = b3+(b2<<8)+(b1<<16)+(b0<<24)
         buf.write(header.to_bytes(4, byteorder="big"))
         buf.write(self.sideinfo)
-        xing = self.xing.to_bytes()
-        logger.debug("Xing: %d\n", len(xing))
-        buf.write(xing)
+        if xing is not None:
+            xing = self.xing.to_bytes()
+            logger.debug("Xing: %d\n", len(xing))
+            buf.write(xing)
         return buf.getvalue()
 
     def is_sensus_compatible(self) -> bool:
@@ -264,8 +265,8 @@ class MPEGHeader:
             self.xing.lame.bitrate = encoding.value
         if self.xing.lame.misc.stereo_mode != StereoMode.JOINT:
             self.xing.lame.misc.stereo_mode = StereoMode.JOINT
-        if self.xing.lame.misc.source_frequency.hz() != self.samplerate.hz(self.version):
-            self.xing.lame.misc.source_frequency = SourceFrequency.KHZ_44_1
+        self.xing.lame.misc.source_frequency = SourceFrequency.from_hz(
+                                                self.samplerate.hz(self.version))
 
         data = self.to_bytes()
         # Fix final CRC: excluding the CRC itself

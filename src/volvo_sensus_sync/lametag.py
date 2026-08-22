@@ -36,6 +36,17 @@ class SourceFrequency(IntEnum):
     KHZ_48 = 2
     ABOVE_48 = 3
 
+
+    @classmethod
+    def from_hz(cls, hz: int):
+        if hz <= 32000:
+            return cls.KHZ_32_OR_LESS
+        if hz == 44100:
+            return cls.KHZ_44_1
+        if hz == 48000:
+            return cls.KHZ_48
+        return cls.ABOVE_48
+
     def hz(self) -> int:
         if self == 0:
             return 32000
@@ -90,8 +101,12 @@ class LameTag:
         buf.write(b.to_bytes(1))
         # Bitrate in kbits/s
         # Value higher than 255 are encoded as 0xFF
-        buf.write(self.bitrate.to_bytes(1))
-        b0 = (self.encoder_delay & 0xF0) >> 4
+        if self.bitrate >= 256:
+            buf.write(0xFF)
+        else:
+            buf.write(self.bitrate.to_bytes(1))
+
+        b0 = (self.encoder_delay >> 4) & 0xFF
         b1 = ((self.encoder_delay & 0x0F) << 4) + ((self.encoder_padding >> 8) & 0x0F)
         b2 = self.encoder_padding & 0xFF
         buf.write(b0.to_bytes(1))

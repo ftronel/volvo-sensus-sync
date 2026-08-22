@@ -52,6 +52,7 @@ class XingHeader:
             buf.write(self.quality.to_bytes(4, byteorder="big"))
         data = buf.getvalue()
         logger.debug("Xing length: %d", len(data))
-        lame = self.lame.to_bytes()
-        buf.write(lame)
+        if lame is not None:
+            lame = self.lame.to_bytes()
+            buf.write(lame)
         return buf.getvalue()
