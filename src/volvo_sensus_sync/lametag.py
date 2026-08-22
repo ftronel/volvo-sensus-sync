@@ -7,10 +7,10 @@ This module implements the Lame tag parsing which is at the heart of Volvo Sensu
 with MP3 produced directly by FFMPEG.
 """
 
-from enum import IntEnum
-from dataclasses import dataclass
-from io import BytesIO
 import logging
+from dataclasses import dataclass
+from enum import IntEnum
+from io import BytesIO
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ class SourceFrequency(IntEnum):
 
 
     @classmethod
-    def from_hz(cls, hz: int):
+    def from_hz(cls, hz: int) -> "SourceFrequency":
         if hz <= 32000:
             return cls.KHZ_32_OR_LESS
         if hz == 44100:

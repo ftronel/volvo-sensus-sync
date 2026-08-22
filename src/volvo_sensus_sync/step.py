@@ -4,6 +4,7 @@
 
 from enum import IntEnum
 
+
 class Step(IntEnum):
     """Enumeration describing the current processing step.
 

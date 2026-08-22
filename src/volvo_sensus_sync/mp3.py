@@ -17,11 +17,25 @@ from pathlib import Path
 from mutagen.mp3 import MP3
 
 from .config import EncodingMode
+from .lametag import (
+    EncodingFlags,
+    LameTag,
+    MiscFlags,
+    SourceFrequency,
+    StereoMode,
+    VbrMethod,
+)
+from .mpegheader import (
+    MPEGBitRate,
+    MPEGChannelMode,
+    MPEGEmphasis,
+    MPEGHeader,
+    MPEGLayer,
+    MPEGModeExtension,
+    MPEGSampleRate,
+    MPEGVersion,
+)
 from .xingheader import XingHeader
-from .lametag import LameTag, VbrMethod, EncodingFlags, StereoMode, SourceFrequency, MiscFlags
-from .mpegheader import MPEGHeader, MPEGVersion, MPEGLayer, MPEGBitRate, MPEGSampleRate,\
-                        MPEGChannelMode, MPEGModeExtension, MPEGEmphasis
-
 
 logger = logging.getLogger(__name__)
 

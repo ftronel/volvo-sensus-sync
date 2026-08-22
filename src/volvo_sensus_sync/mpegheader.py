@@ -6,16 +6,16 @@
 This module implements data classes and constants encountered in MP3 format.
 """
 
-from enum import IntEnum
-from dataclasses import dataclass
-from pathlib import Path
-from io import BytesIO
 import logging
+from dataclasses import dataclass
+from enum import IntEnum
+from io import BytesIO
+from pathlib import Path
 
-from .crc16 import CRC16
 from .config import EncodingSettings
+from .crc16 import CRC16
+from .lametag import SourceFrequency, StereoMode, VbrMethod
 from .xingheader import XingHeader
-from .lametag import VbrMethod, SourceFrequency, StereoMode
 
 logger = logging.getLogger(__name__)
 
@@ -247,7 +247,7 @@ class MPEGHeader:
         header = b3+(b2<<8)+(b1<<16)+(b0<<24)
         buf.write(header.to_bytes(4, byteorder="big"))
         buf.write(self.sideinfo)
-        if xing is not None:
+        if self.xing is not None:
             xing = self.xing.to_bytes()
             logger.debug("Xing: %d\n", len(xing))
             buf.write(xing)

@@ -6,8 +6,9 @@
 This module implements configuration data.
 """
 
-from enum import IntEnum
 from dataclasses import dataclass
+from enum import IntEnum
+
 
 class EncodingMode(IntEnum):
     """ MP3 encoding modes """

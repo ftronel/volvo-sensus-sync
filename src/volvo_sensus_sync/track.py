@@ -10,6 +10,7 @@ from mutagen.id3 import ID3, TALB, TIT2, TPE1, TPOS, TRCK, ID3NoHeaderError
 from .convert import ConversionProcess
 from .mp3 import parse_mpeg_header
 
+
 @dataclass(slots=True)
 class Track:
     """

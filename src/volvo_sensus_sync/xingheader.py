@@ -6,12 +6,12 @@
 This module implements data classes and constants encountered Xing header.
 """
 
+import logging
 from dataclasses import dataclass
 from io import BytesIO
-import logging
 
-from .lametag import LameTag
 from .config import EncodingMode
+from .lametag import LameTag
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +52,7 @@ class XingHeader:
             buf.write(self.quality.to_bytes(4, byteorder="big"))
         data = buf.getvalue()
         logger.debug("Xing length: %d", len(data))
-        if lame is not None:
+        if self.lame is not None:
             lame = self.lame.to_bytes()
             buf.write(lame)
         return buf.getvalue()
