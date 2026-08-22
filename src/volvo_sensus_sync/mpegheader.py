@@ -240,11 +240,11 @@ class MPEGHeader:
     def to_bytes(self) -> bytes:
         buf = BytesIO()
         b0 = 0xFF
-        b1 = (0b111<<5) + (self.version<<3) + (self.layer<<1) + self.crc
-        b2 = (self.bitrate<<4) + (self.samplerate<<2) + (self.padding<<1) + self.private
-        b3 = (self.channel_mode<<6) + (self.mode_extension<<4) + (self.copyright<<3) + \
-            (self.original<<2) + self.emphasis
-        header = b3+(b2<<8)+(b1<<16)+(b0<<24)
+        b1 = (0b111<<5) | (self.version<<3) | (self.layer<<1) | self.crc
+        b2 = (self.bitrate<<4) | (self.samplerate<<2) | (self.padding<<1) + self.private
+        b3 = (self.channel_mode<<6) | (self.mode_extension<<4) | (self.copyright<<3) | \
+            (self.original<<2) | self.emphasis
+        header = b3|(b2<<8)|(b1<<16)|(b0<<24)
         buf.write(header.to_bytes(4, byteorder="big"))
         buf.write(self.sideinfo)
         if self.xing is not None:

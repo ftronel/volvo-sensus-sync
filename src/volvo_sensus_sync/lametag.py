@@ -91,13 +91,13 @@ class LameTag:
     def to_bytes(self) -> bytes:
         buf = BytesIO()
         buf.write(self.encoder.encode("ascii"))
-        b = (self.revision<<4) + self.vbr_method
+        b = (self.revision<<4) | self.vbr_method
         buf.write(b.to_bytes(1))
         buf.write(int(self.lowpass/100).to_bytes(1))
         buf.write(self.replay_gain)
         flags = self.encoding_flags
-        b = (flags.nogap_previous<<7) + (flags.nogap_next <<6) + (flags.safe_joint<<5) +\
-            (flags.nspsytune<<4) + flags.ath_type
+        b = (flags.nogap_previous<<7) | (flags.nogap_next <<6) | (flags.safe_joint<<5) |\
+            (flags.nspsytune<<4) | flags.ath_type
         buf.write(b.to_bytes(1))
         # Bitrate in kbits/s
         # Value higher than 255 are encoded as 0xFF
@@ -107,13 +107,13 @@ class LameTag:
             buf.write(self.bitrate.to_bytes(1))
 
         b0 = (self.encoder_delay >> 4) & 0xFF
-        b1 = ((self.encoder_delay & 0x0F) << 4) + ((self.encoder_padding >> 8) & 0x0F)
+        b1 = ((self.encoder_delay & 0x0F) << 4) | ((self.encoder_padding >> 8) & 0x0F)
         b2 = self.encoder_padding & 0xFF
         buf.write(b0.to_bytes(1))
         buf.write(b1.to_bytes(1))
         buf.write(b2.to_bytes(1))
-        b = ((self.misc.source_frequency & 0b11 )<<6) +((self.misc.unwise & 0b1) << 5) +\
-            ((self.misc.stereo_mode & 0b111)<<2) + (self.misc.noise_shaping & 0b11)
+        b = ((self.misc.source_frequency & 0b11 )<<6) | ((self.misc.unwise & 0b1) << 5) |\
+            ((self.misc.stereo_mode & 0b111)<<2) | (self.misc.noise_shaping & 0b11)
         buf.write(b.to_bytes(1))
         buf.write(self.mp3_gain.to_bytes(1))
         buf.write(self.preset.to_bytes(2,'big'))
