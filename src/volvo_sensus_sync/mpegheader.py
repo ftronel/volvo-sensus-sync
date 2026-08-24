@@ -221,13 +221,25 @@ class MPEGEmphasis(IntEnum):
     CCITT = 3
 
 
-# MPEG-1 Layer I	384	(12000 * kbps / Hz + padding) * 4
-# MPEG-1 Layer II	1152	144000 * kbps / Hz + padding
-# MPEG-1 Layer III	1152	144000 * kbps / Hz + padding
-# MPEG-2/2.5 Layer I	384	(12000 * kbps / Hz + padding) * 4
-# MPEG-2/2.5 Layer II	1152	144000 * kbps / Hz + padding
-# MPEG-2/2.5 Layer III	576	72000 * kbps / Hz + padding
+def samples_per_frame(version: MpegVersion, layer: MPEGLayer) -> int:
+    match version, layer:
+        case _, MPEGLayer.LAYER_I:
+            return 384
+        case _, MPEGLayer.LAYER_II:
+            return 1152
+        case MpegVersion.MPEG_1, MPEGLayer.LAYER_III:
+            return 1152
+        case (MpegVersion.MPEG_2 | MpegVersion.MPEG_2_5), MPEGLayer.LAYER_III:
+            return 576
+        case _:
+            raise ValueError(f"Invalid MPEG version/layer combination: {version}/{layer}")
 
+def frame_length(version: MpegVersion, layer: MPEGLayer, bitrate: int, sample_rate: int) -> int:
+    samples_per_frame = samples_per_frame(version, layer)
+    length = int(samples_per_frame/sample_rate*bitrate/8)
+    if layer == MPEGLayer.LI:
+        length*=4
+    return length
 
 @dataclass
 class MPEGHeader:
