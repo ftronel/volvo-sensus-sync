@@ -12,6 +12,7 @@ from enum import IntEnum
 from io import BytesIO
 from pathlib import Path
 from typing import BinaryIO, Self
+from hexdump import hexdump
 
 from .config import EncodingSettings
 from .crc16 import CRC16
@@ -234,9 +235,10 @@ def samples_per_frame(version: MPEGVersion, layer: MPEGLayer) -> int:
         case _:
             raise ValueError(f"Invalid MPEG version/layer combination: {version}/{layer}")
 
-def frame_length(version: MPEGVersion, layer: MPEGLayer, bitrate: int, sample_rate: int) -> int:
+def frame_length(version: MPEGVersion, layer: MPEGLayer, bitrate: MPEGBitRate,
+                 sample_rate: MPEGSampleRate) -> int:
     samples = samples_per_frame(version, layer)
-    length = int(samples/sample_rate*bitrate/8)
+    length = int(samples/sample_rate.hz(version)*bitrate.kbs(version, layer)*1000/8)
     if layer == MPEGLayer.LI:
         length*=4
     return length
@@ -339,9 +341,14 @@ class MPEGHeader:
         expected_length = frame_length(version, layer, bitrate, samplerate)
         if length > expected_length:
             # TODO: do something in case of inconsistency
-            logger.error("")
+            logger.error("MPEG header length (%d) is longer than expected (%d)",
+                         length, expected_length)
         padding_length = expected_length - length
-        padding = f.read(padding_length)
+        padding_bytes = f.read(padding_length)
+        if not all(b == 0x30 or b == 0x00 for b in padding_bytes):
+            hexdump(padding_bytes)
+            logger.error("Padding is not zeroed !")
+        length = expected_length
         # TODO: check consistency of padding !
 
         return MPEGHeader(
