@@ -11,10 +11,12 @@ from dataclasses import dataclass
 from enum import IntEnum
 from io import BytesIO
 from pathlib import Path
+from typing import BinaryIO, Self
 
 from .config import EncodingSettings
 from .crc16 import CRC16
 from .lametag import SourceFrequency, StereoMode, VbrMethod
+from .mp3 import read_u32
 from .xingheader import XingHeader
 
 logger = logging.getLogger(__name__)
@@ -218,6 +220,15 @@ class MPEGEmphasis(IntEnum):
     RESERVED = 2
     CCITT = 3
 
+
+# MPEG-1 Layer I	384	(12000 * kbps / Hz + padding) * 4
+# MPEG-1 Layer II	1152	144000 * kbps / Hz + padding
+# MPEG-1 Layer III	1152	144000 * kbps / Hz + padding
+# MPEG-2/2.5 Layer I	384	(12000 * kbps / Hz + padding) * 4
+# MPEG-2/2.5 Layer II	1152	144000 * kbps / Hz + padding
+# MPEG-2/2.5 Layer III	576	72000 * kbps / Hz + padding
+
+
 @dataclass
 class MPEGHeader:
     length: int
@@ -236,6 +247,7 @@ class MPEGHeader:
     emphasis: MPEGEmphasis
     sideinfo: bytes
     xing: XingHeader | None
+    padding_length: int
 
     def to_bytes(self) -> bytes:
         buf = BytesIO()
@@ -251,7 +263,88 @@ class MPEGHeader:
             xing = self.xing.to_bytes()
             logger.debug("Xing: %d\n", len(xing))
             buf.write(xing)
+        buf.write(b'0'*self.padding_length)
         return buf.getvalue()
+
+    @classmethod
+    def parse(cls, source: Path | BinaryIO) -> Self | None:
+        if isinstance(source, Path):
+            with source.open("rb") as f:
+                return cls.from_stream(f)
+
+        return cls.from_stream(source)
+
+    @classmethod
+    def from_stream(cls, f: BinaryIO) -> Self | None:
+        # Search for ID3v2 tags
+        # Searching for the first MPEG synchronization
+        while True:
+            b = f.read(1)
+            if not b:
+                raise ValueError("No MPEG frame")
+            if b[0] != 0xFF:
+                continue
+            b = f.read(1)
+            if not b:
+                raise ValueError("EOF")
+            if (b[0] & 0xE0) == 0xE0:
+                f.seek(-2, 1)
+                break
+            f.seek(-1, 1)
+
+        frame_offset = f.tell()
+        header = read_u32(f)
+
+        if (header >> 21) != 0x7FF:
+            logger.error("No MPEG frame found in %s", f)
+            return None
+
+        version = MPEGVersion((header >> 19) & 0b11)
+        layer = MPEGLayer((header >> 17) & 0b11)
+        crc = bool((header >> 16) & 0b1)
+        bitrate = MPEGBitRate((header >> 12) & 0b1111)
+        samplerate = MPEGSampleRate((header >> 10) & 0b11)
+        padding = bool((header >> 9) & 0b1)
+        private = bool((header >> 8) & 0b1)
+        channel_mode = MPEGChannelMode((header >> 6) & 0b11)
+        mode_extension = MPEGModeExtension((header >> 4) & 0b11)
+        cr = bool((header >> 3) & 0b1)
+        original = bool((header >> 2) & 0b1)
+        emphasis = MPEGEmphasis(header & 0b11)
+
+        #
+        # Compute side information size
+        #
+        if version is MPEGVersion.MPEG1:          # MPEG-1
+            side_info_size = 17 if channel_mode == MPEGChannelMode.MONO else 32
+        else:                              # MPEG-2 / 2.5
+            side_info_size = 9 if channel_mode == MPEGChannelMode.MONO else 17
+
+        side_info = f.read(side_info_size)
+        xing = XingHeader.parse(f)
+        end = f.tell()
+        length = end-frame_offset
+        # TODO: compute correct padding length
+        padding_length = 0
+
+        return MPEGHeader(
+            length = length,
+            offset = frame_offset,
+            version = version,
+            layer = layer,
+            crc = crc,
+            bitrate = bitrate,
+            samplerate = samplerate,
+            padding = padding,
+            private = private,
+            channel_mode = channel_mode,
+            mode_extension = mode_extension,
+            copyright = cr,
+            original = original,
+            emphasis = emphasis,
+            sideinfo = side_info,
+            xing = xing,
+            padding_length = padding_length)
 
     def is_sensus_compatible(self) -> bool:
         return self.channel_mode == MPEGChannelMode.JOINT and self.original

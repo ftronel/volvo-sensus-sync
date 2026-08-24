@@ -9,9 +9,11 @@ This module implements data classes and constants encountered Xing header.
 import logging
 from dataclasses import dataclass
 from io import BytesIO
+from typing import BinaryIO, Self
 
 from .config import EncodingMode
 from .lametag import LameTag
+from .mp3 import read_u32
 
 logger = logging.getLogger(__name__)
 
@@ -56,3 +58,40 @@ class XingHeader:
             lame = self.lame.to_bytes()
             buf.write(lame)
         return buf.getvalue()
+
+    @classmethod
+    def parse(cls, f: BinaryIO) -> Self | None:
+        magic = f.read(4)
+
+        if magic not in (b"Xing", b"Info"):
+            return None
+
+        if magic == b"Info":
+            encoding = EncodingMode.CBR
+        else:
+            encoding = EncodingMode.VARIABLE
+
+        flags = read_u32(f)
+
+        nb_frames = None
+        audio_length = None
+        toc = None
+        quality = None
+        if flags & 0x0001:      # Frames
+            nb_frames = read_u32(f)
+        if flags & 0x0002:      # Bytes
+            audio_length = read_u32(f)
+        if flags & 0x0004:      # TOC
+            toc = f.read(100)
+        if flags & 0x0008:      # Quality
+            quality = read_u32(f)
+
+        lame = LameTag.parse(f)
+
+        return XingHeader(
+            encoding = encoding,
+            frames = nb_frames,
+            audio_length = audio_length,
+            toc = toc,
+            quality = quality,
+            lame = lame)

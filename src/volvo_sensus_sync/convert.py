@@ -16,10 +16,11 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from mutagen import File
+from mutagen.mp3 import MP3
 from typeguard import typechecked
 
 from .config import EncodingMode, EncodingSettings
-from .mp3 import check_sensus_compatibility
+from .mpegheader import MPEGHeader
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +51,12 @@ class ConversionProcess:
     finished: bool = False
     successful: bool = False
 
+def check_sensus_compatibility(audio, path) -> bool:
+    if not isinstance(audio, MP3):
+        return False
+
+    header = MPEGHeader.parse(path)
+    return header.is_sensus_compatible()
 
 
 @typechecked

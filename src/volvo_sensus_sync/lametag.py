@@ -11,6 +11,9 @@ import logging
 from dataclasses import dataclass
 from enum import IntEnum
 from io import BytesIO
+from typing import BinaryIO, Self
+
+from .mp3 import read_u8, read_u16, read_u32
 
 logger = logging.getLogger(__name__)
 
@@ -48,12 +51,11 @@ class SourceFrequency(IntEnum):
         return cls.ABOVE_48
 
     def hz(self) -> int:
-        if self == 0:
-            return 32000
-        elif self == 1:
-            return 44100
-        elif self == 2:
-            return 48000
+        match(int(self)):
+            case 0: return 32000
+            case 1: return 44100
+            case 2: return 48000
+            case _: return 48000
 
 class StereoMode(IntEnum):
     MONO = 0
@@ -123,3 +125,54 @@ class LameTag:
         data = buf.getvalue()
         logger.debug("Lame length: %d", len(data))
         return data
+
+    @classmethod
+    def parse(cls, f: BinaryIO) -> Self:
+        encoder = f.read(9).decode("ascii", errors="replace")
+        b = read_u8(f)
+        revision = b>>4
+        vbr_method = VbrMethod(b&0x0F)
+        lowpass_hz = read_u8(f)*100
+        replaygain = f.read(8)
+        b = read_u8(f)
+        nspsytune = bool(b&0x10 == 0x10)
+        nssafejoint = bool(b&0x20 == 0x20)
+        nogap_next = bool(b&0x40 == 0x40)
+        nogap_prev = bool(b&0x80 == 0x80)
+        ath_type = b&0x0F
+        encoding_flags = EncodingFlags(nspsytune, nssafejoint, nogap_prev, nogap_next, ath_type)
+        bitrate = read_u8(f)
+        b0 = read_u8(f)
+        b1 = read_u8(f)
+        b2 = read_u8(f)
+        delay = (b0 << 4) | (b1 >> 4)
+        padding = ((b1 & 0x0F) << 8) | b2
+        # To decode more carefully
+        misc = read_u8(f)
+        noise_shaping = misc & 0x03
+        stereo_mode = StereoMode((misc>>2)&0x07)
+        unwise = bool((misc >> 5) & 0x01)
+        source_frequency = SourceFrequency((misc >> 6) & 0x03)
+        misc = MiscFlags(noise_shaping, stereo_mode, unwise, source_frequency)
+        mp3_gain = read_u8(f)
+        preset = read_u16(f)
+        music_length = read_u32(f)
+        music_crc = read_u16(f)
+        tag_crc = read_u16(f)
+
+        return LameTag(
+            encoder = encoder,
+            revision = revision,
+            vbr_method = vbr_method,
+            lowpass = lowpass_hz,
+            replay_gain = replaygain,
+            encoding_flags = encoding_flags,
+            bitrate = bitrate,
+            encoder_delay = delay,
+            encoder_padding =  padding,
+            misc = misc,
+            mp3_gain = mp3_gain,
+            preset = preset,
+            music_length = music_length,
+            music_crc = music_crc,
+            tag_crc = tag_crc)
