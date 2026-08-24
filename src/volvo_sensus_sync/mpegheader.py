@@ -221,22 +221,22 @@ class MPEGEmphasis(IntEnum):
     CCITT = 3
 
 
-def samples_per_frame(version: MpegVersion, layer: MPEGLayer) -> int:
+def samples_per_frame(version: MPEGVersion, layer: MPEGLayer) -> int:
     match version, layer:
-        case _, MPEGLayer.LAYER_I:
+        case _, MPEGLayer.LI:
             return 384
-        case _, MPEGLayer.LAYER_II:
+        case _, MPEGLayer.LII:
             return 1152
-        case MpegVersion.MPEG_1, MPEGLayer.LAYER_III:
+        case MPEGVersion.MPEG1, MPEGLayer.LIII:
             return 1152
-        case (MpegVersion.MPEG_2 | MpegVersion.MPEG_2_5), MPEGLayer.LAYER_III:
+        case (MPEGVersion.MPEG2 | MPEGVersion.MPEG2_5), MPEGLayer.LIII:
             return 576
         case _:
             raise ValueError(f"Invalid MPEG version/layer combination: {version}/{layer}")
 
-def frame_length(version: MpegVersion, layer: MPEGLayer, bitrate: int, sample_rate: int) -> int:
-    samples_per_frame = samples_per_frame(version, layer)
-    length = int(samples_per_frame/sample_rate*bitrate/8)
+def frame_length(version: MPEGVersion, layer: MPEGLayer, bitrate: int, sample_rate: int) -> int:
+    samples = samples_per_frame(version, layer)
+    length = int(samples/sample_rate*bitrate/8)
     if layer == MPEGLayer.LI:
         length*=4
     return length
@@ -336,8 +336,13 @@ class MPEGHeader:
         xing = XingHeader.parse(f)
         end = f.tell()
         length = end-frame_offset
-        # TODO: compute correct padding length
-        padding_length = 0
+        expected_length = frame_length(version, layer, bitrate, samplerate)
+        if length > expected_length:
+            # TODO: do something in case of inconsistency
+            logger.error("")
+        padding_length = expected_length - length
+        padding = f.read(padding_length)
+        # TODO: check consistency of padding !
 
         return MPEGHeader(
             length = length,
