@@ -4,6 +4,7 @@
 
 from dataclasses import dataclass
 from enum import IntEnum
+from typing import Self
 
 
 class Step(IntEnum):
@@ -23,6 +24,12 @@ class Step(IntEnum):
     STATS = 8
     SORTING_STATS = 9
     SEARCH_CUTS = 10
+
+    def next(self) -> Self:
+        try:
+            return Step(self.value + 1)
+        except ValueError as exc:
+            raise ValueError(f"No step after {self.name}") from exc
 
 @dataclass
 class RuntimeState:

@@ -74,7 +74,7 @@ def main() -> int:
     group.add_argument("--vbr", type=int,
                        help="Quality for VBR encoding [0-9].")
 
-    runtime_state.step+=1
+    runtime_state.step = runtime_state.step.next()
     args = parser.parse_args()
     logger.info('Arguments: %s',args)
 
@@ -123,23 +123,23 @@ def main() -> int:
     export_all = export / "all"
     export_all.mkdir(exist_ok=True)
 
-    runtime_state.step+=1
+    runtime_state.step = runtime_state.step.next()
     files = get_audio_list(music)
     logger.info('Found %d files', len(files))
 
-    runtime_state.step+=1
+    runtime_state.step = runtime_state.step.next()
     logger.info('Retrieving audio metadata')
     audios = get_metadata(files)
 
-    runtime_state.step+=1
+    runtime_state.step = runtime_state.step.next()
     logger.info('Sorting files by artist')
     audios = dict(sorted(audios.items()))
 
-    runtime_state.step+=1
+    runtime_state.step = runtime_state.step.next()
     logger.info("Creating export directory structure ...")
     conversions = determine_conversions(audios, export_all)
 
-    runtime_state.step+=1
+    runtime_state.step = runtime_state.step.next()
     logger.info("There are %d files to convert.", len(conversions))
 
     scheduler(conversions, args.nb_threads, settings)
@@ -148,7 +148,7 @@ def main() -> int:
         logger.info("Exiting as requested.")
         return -1
 
-    runtime_state.step+=1
+    runtime_state.step = runtime_state.step.next()
     logger.info("Determining MP3 total size")
     size = mp3_total_size(export_all)
     logger.info("MP3 total size: %d", size)
@@ -164,14 +164,14 @@ def main() -> int:
         ideal_size = ceil(size/args.number_dirs)
     logger.info("We are seeking %d directories of %d bytes each.", args.number_dirs, ideal_size)
 
-    runtime_state.step+=1
+    runtime_state.step = runtime_state.step.next()
     stats = stats_by_artist(export_all)
 
     logger.info("Sorting by alphabetic order")
-    runtime_state.step+=1
+    runtime_state.step = runtime_state.step.next()
     stats = dict(sorted(stats.items(), key=lambda item: sort_artist_path(item[0])))
 
-    runtime_state.step+=1
+    runtime_state.step = runtime_state.step.next()
     logger.info("Computing cuts by artist")
     parts = find_cuts(stats, ideal_size, args.number_dirs)
     if parts is None:
