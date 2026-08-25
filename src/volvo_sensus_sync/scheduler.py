@@ -22,6 +22,7 @@ from .track import Track
 
 logger = logging.getLogger(__name__)
 
+@typechecked
 def finish_conversion(track: Track, settings: EncodingSettings) -> None:
      # fix MPEG header
     header = track.get_mpeg_header()
@@ -35,6 +36,18 @@ def finish_conversion(track: Track, settings: EncodingSettings) -> None:
         logger.error("Impossible to fix Volvo compatibility of: %s", track.dest)
     # Write metadata
     track.write_tags()
+
+def check_ffmpeg_warnings(track: Track) -> bool:
+    stderr_path = track.process.stderr_path
+
+    if not stderr_path.exists():
+        return False
+
+    if stderr_path.stat().st_size == 0:
+        stderr_path.unlink()
+        return False
+
+    return True
 
 
 @typechecked
@@ -54,8 +67,10 @@ def scheduler(conversions: list[Track], nb_threads: int, settings: EncodingSetti
     tracks_by_pid = {}
     active_tracks: set[Track] = set()
     errors: set[Track] = set()
+    warnings: set[Track] = set()
+
     with tqdm(total=len(conversions), desc="Conversions", unit="Track") as progress:
-        progress.set_postfix(active=len(active_tracks), errors=len(errors))
+        progress.set_postfix(active=len(active_tracks), warnings=len(warnings), errors=len(errors))
         # Fill up the buffer with nb_threads conversions
         logger.debug("Filling CPUs with %d conversions", nb_threads)
         while (len(active_tracks) < nb_threads) and (len(conversions) >0):
@@ -66,12 +81,14 @@ def scheduler(conversions: list[Track], nb_threads: int, settings: EncodingSetti
                 # We still may need to fix MP3
                 finish_conversion(track, settings)
                 progress.update(1)
-                progress.set_postfix(active=len(active_tracks), errors=len(errors))
+                progress.set_postfix(active=len(active_tracks), warnings=len(warnings),
+                                     errors=len(errors))
                 continue
             track.process = conv
             tracks_by_pid[conv.ffmpeg.pid] = track
             active_tracks.add(track)
-            progress.set_postfix(active=len(active_tracks), errors=len(errors))
+            progress.set_postfix(active=len(active_tracks), warnings=len(warnings),
+                                 errors=len(errors))
 
         # Keep on launching conversions until completion or interrupt is requested.
         while len(active_tracks) > 0:
@@ -97,12 +114,16 @@ def scheduler(conversions: list[Track], nb_threads: int, settings: EncodingSetti
             logger.debug("Track status: %s", track)
             if process.finished:
                 if process.successful:
+                    if check_ffmpeg_warnings(track):
+                        logger.warning("FFmpeg warnings for %s", track.source)
+                        warnings.add(track)
                     finish_conversion(track, settings)
                     logger.debug('Conversion of %s was successful', track)
                 active_tracks.remove(track)
                 tracks_by_pid.pop(pid)
             progress.update(1)
-            progress.set_postfix(active=len(active_tracks), errors=len(errors))
+            progress.set_postfix(active=len(active_tracks), warnings=len(warnings),
+                                 errors=len(errors))
 
             # If we can admit a new conversion, find a candidate
             while len(active_tracks) < nb_threads and len(conversions)>0 \
@@ -113,9 +134,11 @@ def scheduler(conversions: list[Track], nb_threads: int, settings: EncodingSetti
                 if conv is None:
                     finish_conversion(track, settings)
                     progress.update(1)
-                    progress.set_postfix(active=len(active_tracks), errors=len(errors))
+                    progress.set_postfix(active=len(active_tracks), warnings=len(warnings),
+                                         errors=len(errors))
                     continue
                 track.process = conv
                 tracks_by_pid[conv.ffmpeg.pid] = track
                 active_tracks.add(track)
-                progress.set_postfix(active=len(active_tracks), errors=len(errors))
+                progress.set_postfix(active=len(active_tracks), warnings=len(warnings),
+                                     errors=len(errors))

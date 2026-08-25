@@ -48,6 +48,7 @@ class ConversionProcess:
         successful.
     """
     ffmpeg: subprocess.Popen
+    stderr_path: Path
     finished: bool = False
     successful: bool = False
 
@@ -56,8 +57,10 @@ def check_sensus_compatibility(audio, path) -> bool:
         return False
 
     header = MPEGHeader.parse(path)
-    return header.is_sensus_compatible()
+    if header is not None:
+        return header.is_sensus_compatible()
 
+    return False
 
 @typechecked
 def convert(input_file: Path, output_file: Path,
@@ -109,6 +112,14 @@ def convert(input_file: Path, output_file: Path,
 
     ffmpeg_cmd += [ str(output_file) ]
 
-    ffmpeg = subprocess.Popen(ffmpeg_cmd, start_new_session=True)
+    stderr_path = output_file.with_suffix(output_file.suffix + ".ffmpeg.log")
+    stderr_file = stderr_path.open("wb")
 
-    return ConversionProcess(ffmpeg=ffmpeg)
+    ffmpeg = subprocess.Popen(
+        ffmpeg_cmd,
+        stdout=subprocess.DEVNULL,
+        stderr=stderr_file,
+        start_new_session=True)
+
+    return ConversionProcess(ffmpeg=ffmpeg,
+                             stderr_path=stderr_path)
