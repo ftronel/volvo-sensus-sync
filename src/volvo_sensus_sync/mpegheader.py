@@ -13,7 +13,7 @@ from io import BytesIO
 from pathlib import Path
 from typing import BinaryIO, Self
 
-from hexdump import hexdump
+import hexdump
 
 from .config import EncodingMode, EncodingSettings
 from .crc16 import CRC16
@@ -291,6 +291,7 @@ class MPEGHeader:
     version: MPEGVersion
     layer: MPEGLayer
     no_crc: bool
+    crc: bytes
     bitrate: MPEGBitRate
     samplerate: MPEGSampleRate
     padding: bool
@@ -313,6 +314,8 @@ class MPEGHeader:
             (self.original<<2) | self.emphasis
         header = b3|(b2<<8)|(b1<<16)|(b0<<24)
         buf.write(header.to_bytes(4, byteorder="big"))
+        if not self.no_crc:
+            buf.write(self.crc)
         buf.write(self.sideinfo)
         if self.xing is not None:
             xing = self.xing.to_bytes()
@@ -378,6 +381,11 @@ class MPEGHeader:
         else:                              # MPEG-2 / 2.5
             side_info_size = 9 if channel_mode == MPEGChannelMode.MONO else 17
 
+        # There is a CRC
+        crc = bytes()
+        if not no_crc:
+            crc = f.read(2)
+
         side_info = f.read(side_info_size)
         xing = XingHeader.parse(f)
         end = f.tell()
@@ -391,7 +399,7 @@ class MPEGHeader:
         padding_bytes = f.read(padding_length)
         if not all(b == 0x00 for b in padding_bytes):
             # TODO: do something when padding is not zeroed !
-            hexdump(padding_bytes)
+            logger.debug(hexdump.dump(padding_bytes))
             logger.warning("Padding of %s is not zeroed. Frame offset: %d", f, frame_offset)
         length = expected_length
 
@@ -401,6 +409,7 @@ class MPEGHeader:
             version = version,
             layer = layer,
             no_crc = no_crc,
+            crc = crc,
             bitrate = bitrate,
             samplerate = samplerate,
             padding = padding,
