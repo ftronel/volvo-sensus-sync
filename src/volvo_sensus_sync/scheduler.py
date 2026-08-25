@@ -17,6 +17,7 @@ from typeguard import typechecked
 
 from .config import EncodingSettings
 from .convert import convert
+from .mpegheader import InvalidMP3File
 from .step import runtime_state
 from .track import Track
 
@@ -42,7 +43,11 @@ def find_next_track(tracks_by_pid: dict[int, Track] , active_tracks: set[Track],
                     errors: set[Track], warnings: set[Track], conversions: list[Track],
                     settings: EncodingSettings) -> bool:
     track = conversions.pop()
-    conv = convert(track.source, track.dest, settings)
+    try:
+        conv = convert(track.source, track.dest, settings)
+    except InvalidMP3File:
+        return True
+
     # If we draw an MP3 file we keep on trying to fill processor with conversion
     if conv is None:
         finish_conversion(track, settings)

@@ -20,7 +20,7 @@ from mutagen.mp3 import MP3
 from typeguard import typechecked
 
 from .config import EncodingMode, EncodingSettings
-from .mpegheader import MPEGHeader
+from .mpegheader import MPEGHeader, InvalidMP3File
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +82,7 @@ def convert(input_file: Path, output_file: Path,
         header = MPEGHeader.parse(input_file)
         if header is None:
             logger.error("Impossible to parse MPEG header of %s", input_file)
-            return None
+            raise InvalidMP3File()
         try:
             output_file.hardlink_to(input_file)
         except OSError:
@@ -94,7 +94,7 @@ def convert(input_file: Path, output_file: Path,
         header = MPEGHeader.parse(output_file)
         if header is None:
             logger.error("Impossible to parse MPEG header of %s", output_file)
-            return None
+            raise InvalidMP3File()
         compat = header.is_sensus_compatible()
         if not compat:
             logger.error("Impossible to fix MP3 compatibility of %s", input_file)

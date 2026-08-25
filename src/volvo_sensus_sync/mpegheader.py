@@ -223,6 +223,8 @@ class MPEGEmphasis(IntEnum):
     RESERVED = 2
     CCITT = 3
 
+class InvalidMP3File(Exception):
+    pass
 
 def samples_per_frame(version: MPEGVersion, layer: MPEGLayer) -> int:
     match version, layer:
@@ -244,6 +246,43 @@ def frame_length(version: MPEGVersion, layer: MPEGLayer, bitrate: MPEGBitRate,
     if layer == MPEGLayer.LI:
         length*=4
     return length
+
+def search_for_mpeg_synchro(f: BinaryIO, start_offset: int,
+                            max_scan: int = 1024 * 1024) -> int | None:
+    """
+    Search for a valid MPEG frame after the declared end of ID3v2.
+
+    This tolerates extra zero padding or junk between ID3v2 and
+    the first MPEG frame.
+    """
+    f.seek(start_offset)
+
+    end_offset = start_offset + max_scan
+    pos = start_offset
+
+    previous = f.read(1)
+    if not previous:
+        return None
+
+    pos += 1
+
+    while pos < end_offset:
+        current = f.read(1)
+        if not current:
+            return None
+
+        b0 = previous[0]
+        b1 = current[0]
+
+        candidate = pos - 1
+
+        if b0 == 0xFF and (b1 & 0xE0) == 0xE0:
+            return candidate
+
+        previous = current
+        pos += 1
+
+    return None
 
 @dataclass
 class MPEGHeader:
@@ -294,9 +333,16 @@ class MPEGHeader:
     @classmethod
     def from_stream(cls, f: BinaryIO) -> Self | None:
         # Search for ID3v2 tags
-        offset = skip_id3v2_tags(f)
-        f.seek(offset)
-        # Looking for the first MPEG synchronization
+        id3_offset = skip_id3v2_tags(f)
+        logger.debug("Skipping ID3 tags at offset %x", id3_offset)
+        f.seek(id3_offset)
+        # Searching for the first MPEG synchronization
+        mpeg_offset = search_for_mpeg_synchro(f, id3_offset)
+        if mpeg_offset is None:
+            return None
+        logger.debug("Found synchronization at offset %x", mpeg_offset)
+        f.seek(mpeg_offset)
+
         synchro = f.read(2)
         if synchro[0] != 0xFF or (synchro[1] & 0xE0) != 0xE0:
             logger.error("Impossible to find synchro bits in %s", f)
