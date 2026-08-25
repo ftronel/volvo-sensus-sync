@@ -15,7 +15,7 @@ from typing import BinaryIO, Self
 
 from hexdump import hexdump
 
-from .config import EncodingSettings
+from .config import EncodingSettings, EncodingMode
 from .crc16 import CRC16
 from .id3 import skip_id3v2_tags
 from .lametag import SourceFrequency, StereoMode, VbrMethod
@@ -373,14 +373,16 @@ class MPEGHeader:
     def fix_sensus_compatibility(self, path: Path, encoding: EncodingSettings) -> None:
         self.channel_mode = MPEGChannelMode.JOINT
         self.original = True
-        if self.xing.lame.vbr_method == VbrMethod.UNKNOWN:
-            self.xing.lame.vbr_method = VbrMethod(int(encoding.mode)+1)
-        if self.xing.lame.bitrate != self.bitrate.kbs(self.version, self.layer):
-            self.xing.lame.bitrate = encoding.value
-        if self.xing.lame.misc.stereo_mode != StereoMode.JOINT:
-            self.xing.lame.misc.stereo_mode = StereoMode.JOINT
-        self.xing.lame.misc.source_frequency = SourceFrequency.from_hz(
-                                                self.samplerate.hz(self.version))
+        if self.xing is not None and self.xing.lame is not None:
+            if self.xing.lame.vbr_method == VbrMethod.UNKNOWN:
+                self.xing.lame.vbr_method = VbrMethod(int(encoding.mode)+1)
+            if encoding.mode in (EncodingMode.CBR, EncodingMode.ABR):
+                if self.xing.lame.bitrate != self.bitrate.kbs(self.version, self.layer):
+                    self.xing.lame.bitrate = encoding.value
+            if self.xing.lame.misc.stereo_mode != StereoMode.JOINT:
+                self.xing.lame.misc.stereo_mode = StereoMode.JOINT
+            self.xing.lame.misc.source_frequency = SourceFrequency.from_hz(
+                                                    self.samplerate.hz(self.version))
 
         data = self.to_bytes()
         # Fix final CRC: excluding the CRC itself
