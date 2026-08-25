@@ -345,7 +345,7 @@ class MPEGHeader:
         if not all(b == 0x00 for b in padding_bytes):
             # TODO: do something when padding is not zeroed !
             hexdump(padding_bytes)
-            logger.warning("Padding of %s is not zeroed !", f)
+            logger.warning("Padding of %s is not zeroed. Frame offset: %d", f, frame_offset)
         length = expected_length
 
         return MPEGHeader(

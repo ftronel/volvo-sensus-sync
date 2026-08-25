@@ -22,6 +22,7 @@ from .track import Track
 
 logger = logging.getLogger(__name__)
 
+
 @typechecked
 def finish_conversion(track: Track, settings: EncodingSettings) -> None:
      # fix MPEG header
@@ -36,6 +37,21 @@ def finish_conversion(track: Track, settings: EncodingSettings) -> None:
         logger.error("Impossible to fix Volvo compatibility of: %s", track.dest)
     # Write metadata
     track.write_tags()
+
+def find_next_track(tracks_by_pid: dict[int, Track] , active_tracks: set[Track],
+                    errors: set[Track], warnings: set[Track], conversions: list[Track],
+                    settings: EncodingSettings) -> bool:
+    track = conversions.pop()
+    conv = convert(track.source, track.dest, settings)
+    # If we draw an MP3 file we keep on trying to fill processor with conversion
+    if conv is None:
+        finish_conversion(track, settings)
+        return True
+    else:
+        track.process = conv
+        tracks_by_pid[conv.ffmpeg.pid] = track
+        active_tracks.add(track)
+        return False
 
 def check_ffmpeg_warnings(track: Track) -> bool:
     stderr_path = track.process.stderr_path
@@ -74,21 +90,10 @@ def scheduler(conversions: list[Track], nb_threads: int, settings: EncodingSetti
         # Fill up the buffer with nb_threads conversions
         logger.debug("Filling CPUs with %d conversions", nb_threads)
         while (len(active_tracks) < nb_threads) and (len(conversions) >0):
-            track = conversions.pop()
-            conv = convert(track.source, track.dest, settings)
-            # If we draw an MP3 file we keep on trying to fill processor with conversion
-            if conv is None:
-                # We still may need to fix MP3
-                finish_conversion(track, settings)
+            if find_next_track(tracks_by_pid, active_tracks, errors, warnings, conversions,
+                               settings):
                 progress.update(1)
-                progress.set_postfix(active=len(active_tracks), warnings=len(warnings),
-                                     errors=len(errors))
-                continue
-            track.process = conv
-            tracks_by_pid[conv.ffmpeg.pid] = track
-            active_tracks.add(track)
-            progress.set_postfix(active=len(active_tracks), warnings=len(warnings),
-                                 errors=len(errors))
+        progress.set_postfix(active=len(active_tracks), warnings=len(warnings), errors=len(errors))
 
         # Keep on launching conversions until completion or interrupt is requested.
         while len(active_tracks) > 0:
@@ -128,17 +133,8 @@ def scheduler(conversions: list[Track], nb_threads: int, settings: EncodingSetti
             # If we can admit a new conversion, find a candidate
             while len(active_tracks) < nb_threads and len(conversions)>0 \
                 and runtime_state.interruptions == 0:
-                track = conversions.pop()
-                conv = convert(track.source, track.dest, settings)
-                # If we draw an MP3 file we keep on trying to fill processor with conversion
-                if conv is None:
-                    finish_conversion(track, settings)
+                if find_next_track(tracks_by_pid, active_tracks, errors, warnings, conversions,
+                                   settings):
                     progress.update(1)
-                    progress.set_postfix(active=len(active_tracks), warnings=len(warnings),
-                                         errors=len(errors))
-                    continue
-                track.process = conv
-                tracks_by_pid[conv.ffmpeg.pid] = track
-                active_tracks.add(track)
                 progress.set_postfix(active=len(active_tracks), warnings=len(warnings),
                                      errors=len(errors))
