@@ -247,6 +247,41 @@ def frame_length(version: MPEGVersion, layer: MPEGLayer, bitrate: MPEGBitRate,
         length*=4
     return length
 
+def validate_mpeg_header(f: BinaryIO, offset:int) -> bool:
+    f.seek(offset)
+    header = read_u32(f)
+
+    # Recheck synchro
+    if (header >> 21) != 0x7FF:
+        logger.warning("No synchro at offset: %x", offset)
+        return False
+
+    # If any of these fields cannot be parsed we reject the candidate
+    try:
+        version = MPEGVersion((header >> 19) & 0b11)
+        layer = MPEGLayer((header >> 17) & 0b11)
+        bitrate = MPEGBitRate((header >> 12) & 0b1111)
+        samplerate = MPEGSampleRate((header >> 10) & 0b11)
+        channel_mode = MPEGChannelMode((header >> 6) & 0b11)
+        mode_extension = MPEGModeExtension((header >> 4) & 0b11)
+        emphasis = MPEGEmphasis(header & 0b11)
+    except:
+        return False
+
+    if version == MPEGVersion.RESERVED:
+        return False
+
+    if layer == MPEGLayer.RESERVED:
+        return False
+
+    if bitrate in (MPEGBitRate.FREE, MPEGBitRate.BAD):
+        return False
+
+    if samplerate == MPEGSampleRate.RESERVED:
+        return False
+
+    return True
+
 def search_for_mpeg_synchro(f: BinaryIO, start_offset: int,
                             max_scan: int = 1024 * 1024) -> int | None:
     """
@@ -274,10 +309,13 @@ def search_for_mpeg_synchro(f: BinaryIO, start_offset: int,
         b0 = previous[0]
         b1 = current[0]
 
-        candidate = pos - 1
+        candidate = f.tell()-2
 
         if b0 == 0xFF and (b1 & 0xE0) == 0xE0:
-            return candidate
+            if validate_mpeg_header(f, candidate):
+                return candidate
+            else:
+                logger.debug("Skipping candidate at offset: %x", candidate)
 
         previous = current
         pos += 1
@@ -340,24 +378,14 @@ class MPEGHeader:
         logger.debug("Skipping ID3 tags at offset %x", id3_offset)
         f.seek(id3_offset)
         # Searching for the first MPEG synchronization
-        mpeg_offset = search_for_mpeg_synchro(f, id3_offset)
-        if mpeg_offset is None:
+        frame_offset = search_for_mpeg_synchro(f, id3_offset)
+        if frame_offset is None:
             return None
-        logger.debug("Found synchronization at offset %x", mpeg_offset)
-        f.seek(mpeg_offset)
-
-        synchro = f.read(2)
-        if synchro[0] != 0xFF or (synchro[1] & 0xE0) != 0xE0:
-            logger.error("Impossible to find synchro bits in %s", f)
-            return None
-
-        # Go back and read all header
-        f.seek(-2,1)
-        frame_offset = f.tell()
+        logger.debug("Found synchronization at offset %x", frame_offset)
+        f.seek(frame_offset)
         header = read_u32(f)
 
         if (header >> 21) != 0x7FF:
-            logger.error("No MPEG frame found in %s", f)
             return None
 
         version = MPEGVersion((header >> 19) & 0b11)
