@@ -98,8 +98,8 @@ def scheduler(conversions: list[Track], nb_threads: int, settings: EncodingSetti
             if process.finished:
                 if process.successful:
                     finish_conversion(track, settings)
-                    active_tracks.remove(track)
                     logger.debug('Conversion of %s was successful', track)
+                active_tracks.remove(track)
                 tracks_by_pid.pop(pid)
             progress.update(1)
             progress.set_postfix(active=len(active_tracks), errors=len(errors))
