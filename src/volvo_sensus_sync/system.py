@@ -25,7 +25,6 @@ def sigint_handler(signum, frame):
     launching new jobs and allows the currently running subprocesses to finish
     gracefully.  During any earlier step the program exits immediately.
     """
-    global runtime_state
 
     runtime_state.interruptions += 1
     if runtime_state.step != Step.CONVERSION or runtime_state.interruptions>1:

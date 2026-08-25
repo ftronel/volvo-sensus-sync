@@ -104,7 +104,7 @@ class LameTag:
         # Bitrate in kbits/s
         # Value higher than 255 are encoded as 0xFF
         if self.bitrate >= 256:
-            buf.write(int(0xFF).to_bytes(1))
+            buf.write((0xFF).to_bytes(1))
         else:
             buf.write(self.bitrate.to_bytes(1))
 

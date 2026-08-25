@@ -35,7 +35,6 @@ def main() -> int:
     Parses arguments, validates input/output directories, orchestrates the
     conversion pipeline and finally creates the requested partitions.
     """
-    global runtime_state
 
     logger = logging.getLogger(__name__)
 

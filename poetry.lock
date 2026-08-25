@@ -99,6 +99,17 @@ humanfriendly = ">=9.1"
 cron = ["capturer (>=2.4)"]
 
 [[package]]
+name = "hexdump"
+version = "3.3"
+description = "dump binary data to hex format and restore from there"
+optional = false
+python-versions = "*"
+groups = ["main"]
+files = [
+    {file = "hexdump-3.3.zip", hash = "sha256:d781a43b0c16ace3f9366aade73e8ad3a7bd5137d58f0b45ab2d3f54876f20db"},
+]
+
+[[package]]
 name = "humanfriendly"
 version = "10.0"
 description = "Human friendly output for text interfaces using Python"
@@ -546,4 +557,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<4"
-content-hash = "6665d1bd1ef09ef7501ab7b4fa531553988a56ab6f6acad5421cfdce24c8af90"
+content-hash = "a8cac3bc9e27949e1b6f81c6f2238dafe67ee691bb86fac24df17dc8033798fd"
