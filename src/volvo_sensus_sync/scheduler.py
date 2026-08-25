@@ -28,7 +28,7 @@ def finish_conversion(track: Track, settings: EncodingSettings) -> None:
      # fix MPEG header
     header = track.get_mpeg_header()
     if not header.is_sensus_compatible():
-        header.fix_sensus_compatibility(track.dest, settings)
+        header.fix_sensus_compatibility(track.dest, False, settings)
     else:
         logger.warning("%s is already compatible !!", track)
     header = track.get_mpeg_header()

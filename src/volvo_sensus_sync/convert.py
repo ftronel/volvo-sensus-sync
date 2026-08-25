@@ -90,7 +90,7 @@ def convert(input_file: Path, output_file: Path,
             shutil.copy2(input_file, output_file)
         compat = header.is_sensus_compatible()
         if not compat:
-            header.fix_sensus_compatibility(output_file, settings)
+            header.fix_sensus_compatibility(output_file, True, None)
         header = MPEGHeader.parse(output_file)
         if header is None:
             logger.error("Impossible to parse MPEG header of %s", output_file)

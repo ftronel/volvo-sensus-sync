@@ -299,6 +299,7 @@ class MPEGHeader:
         # Looking for the first MPEG synchronization
         synchro = f.read(2)
         if synchro[0] != 0xFF or (synchro[1] & 0xE0) != 0xE0:
+            logger.error("Impossible to find synchro bits in %s", f)
             return None
 
         # Go back and read all header
@@ -370,10 +371,12 @@ class MPEGHeader:
     def is_sensus_compatible(self) -> bool:
         return self.channel_mode == MPEGChannelMode.JOINT and self.original
 
-    def fix_sensus_compatibility(self, path: Path, encoding: EncodingSettings) -> None:
+    def fix_sensus_compatibility(self, path: Path, minimal: bool,
+                                 encoding: EncodingSettings) -> None:
         self.channel_mode = MPEGChannelMode.JOINT
         self.original = True
-        if self.xing is not None and self.xing.lame is not None:
+        if not minimal and encoding is not None and self.xing is not None and\
+            self.xing.lame is not None:
             if self.xing.lame.vbr_method == VbrMethod.UNKNOWN:
                 self.xing.lame.vbr_method = VbrMethod(int(encoding.mode)+1)
             if encoding.mode in (EncodingMode.CBR, EncodingMode.ABR)\
