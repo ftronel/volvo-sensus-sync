@@ -12,10 +12,12 @@ from enum import IntEnum
 from io import BytesIO
 from pathlib import Path
 from typing import BinaryIO, Self
+
 from hexdump import hexdump
 
 from .config import EncodingSettings
 from .crc16 import CRC16
+from .id3 import skip_id3v2_tags
 from .lametag import SourceFrequency, StereoMode, VbrMethod
 from .mp3 import read_u32
 from .xingheader import XingHeader
@@ -277,7 +279,8 @@ class MPEGHeader:
             xing = self.xing.to_bytes()
             logger.debug("Xing: %d\n", len(xing))
             buf.write(xing)
-        buf.write(b'0'*self.padding_length)
+        padding = bytes(self.padding_length)
+        buf.write(padding)
         return buf.getvalue()
 
     @classmethod
@@ -291,21 +294,15 @@ class MPEGHeader:
     @classmethod
     def from_stream(cls, f: BinaryIO) -> Self | None:
         # Search for ID3v2 tags
-        # Searching for the first MPEG synchronization
-        while True:
-            b = f.read(1)
-            if not b:
-                raise ValueError("No MPEG frame")
-            if b[0] != 0xFF:
-                continue
-            b = f.read(1)
-            if not b:
-                raise ValueError("EOF")
-            if (b[0] & 0xE0) == 0xE0:
-                f.seek(-2, 1)
-                break
-            f.seek(-1, 1)
+        offset = skip_id3v2_tags(f)
+        f.seek(offset)
+        # Looking for the first MPEG synchronization
+        synchro = f.read(2)
+        if synchro[0] != 0xFF or (synchro[1] & 0xE0) != 0xE0:
+            return None
 
+        # Go back and read all header
+        f.seek(-2,1)
         frame_offset = f.tell()
         header = read_u32(f)
 
@@ -345,11 +342,11 @@ class MPEGHeader:
                          length, expected_length)
         padding_length = expected_length - length
         padding_bytes = f.read(padding_length)
-        if not all(b == 0x30 or b == 0x00 for b in padding_bytes):
+        if not all(b == 0x00 for b in padding_bytes):
+            # TODO: do something when padding is not zeroed !
             hexdump(padding_bytes)
-            logger.error("Padding is not zeroed !")
+            logger.warning("Padding of %s is not zeroed !", f)
         length = expected_length
-        # TODO: check consistency of padding !
 
         return MPEGHeader(
             length = length,
