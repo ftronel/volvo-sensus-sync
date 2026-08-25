@@ -74,7 +74,7 @@ def scheduler(conversions: list[Track], nb_threads: int, settings: EncodingSetti
             progress.set_postfix(active=len(active_tracks), errors=len(errors))
 
         # Keep on launching conversions until completion or interrupt is requested.
-        while(len(active_tracks) > 0):
+        while len(active_tracks) > 0:
             # Wait for completion of a subprocess
             logger.debug("Waiting for conversion completion")
             try:
