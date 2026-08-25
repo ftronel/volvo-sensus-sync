@@ -34,7 +34,7 @@ def finish_conversion(track: Track, settings: EncodingSettings) -> None:
     if not fixed:
         logger.error("Impossible to fix Volvo compatibility of: %s", track.dest)
     # Write metadata
-    # track.write_tags()
+    track.write_tags()
 
 
 @typechecked
