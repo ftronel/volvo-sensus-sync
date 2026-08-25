@@ -27,10 +27,10 @@ def sigint_handler(signum, frame):
     """
     global runtime_state
 
-    logger.warning("Received CTRL-C during step: %s", runtime_state.step)
-    if runtime_state.step != Step.CONVERSION:
-        sys.exit(-1)
     runtime_state.interruptions += 1
+    if runtime_state.step != Step.CONVERSION or runtime_state.interruptions>1:
+        logger.warning("Shutting down as requested.")
+        sys.exit(-1)
     logger.warning("Please wait during graceful shutdown")
 
 @typechecked
