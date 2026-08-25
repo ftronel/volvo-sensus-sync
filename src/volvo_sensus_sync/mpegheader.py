@@ -386,7 +386,8 @@ class MPEGHeader:
 
         data = self.to_bytes()
         # Fix final CRC: excluding the CRC itself
-        self.xing.lame.tag_crc = CRC16.compute(data[:-2])
+        data_length = self.length - self.padding_length - 2
+        self.xing.lame.tag_crc = CRC16.compute(data[:data_length])
         data = self.to_bytes()
         if len(data) != self.length:
             logger.error('Original header (%d) and rewritten header (%d) have not the same length !'
