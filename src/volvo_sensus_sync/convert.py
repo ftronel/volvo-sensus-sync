@@ -83,6 +83,11 @@ def convert(input_file: Path, output_file: Path,
         if header is None:
             logger.error("Impossible to parse MPEG header of %s", input_file)
             return None
+        try:
+            output_file.hardlink_to(input_file)
+        except OSError:
+            # Volumes différents ou hard links non supportés
+            shutil.copy2(input_file, output_file)
         compat = header.is_sensus_compatible()
         if not compat:
             header.fix_sensus_compatibility(output_file, settings)
@@ -94,11 +99,6 @@ def convert(input_file: Path, output_file: Path,
         if not compat:
             logger.error("Impossible to fix MP3 compatibility of %s", input_file)
             return None
-        try:
-            output_file.hardlink_to(input_file)
-        except OSError:
-            # Volumes différents ou hard links non supportés
-            shutil.copy2(input_file, output_file)
         return None
 
     # We only transcode the audio track to MP3 and suppress all others metadata

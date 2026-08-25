@@ -17,6 +17,7 @@ from .mp3 import read_u8, read_u16, read_u32
 
 logger = logging.getLogger(__name__)
 
+SIGNATURES = ['LAME', 'Lavf', 'Lavc', 'GOGO']
 
 class VbrMethod(IntEnum):
     UNKNOWN = 0
@@ -127,11 +128,24 @@ class LameTag:
         return data
 
     @classmethod
-    def parse(cls, f: BinaryIO) -> Self:
+    def parse(cls, f: BinaryIO) -> Self | None:
+        original_offset = f.tell()
         encoder = f.read(9).decode("ascii", errors="replace")
+        signature_found = False
+        for sig in SIGNATURES:
+            if encoder.startswith(sig):
+                signature_found = True
+                break
+        if not signature_found:
+            f.seek(original_offset)
+            return None
         b = read_u8(f)
         revision = b>>4
-        vbr_method = VbrMethod(b&0x0F)
+        try:
+            vbr_method = VbrMethod(b&0x0F)
+        except:
+            f.seek(original_offset)
+            return None
         lowpass_hz = read_u8(f)*100
         replaygain = f.read(8)
         b = read_u8(f)
@@ -150,9 +164,17 @@ class LameTag:
         # To decode more carefully
         misc = read_u8(f)
         noise_shaping = misc & 0x03
-        stereo_mode = StereoMode((misc>>2)&0x07)
+        try:
+            stereo_mode = StereoMode((misc>>2)&0x07)
+        except:
+            f.seek(original_offset)
+            return None
         unwise = bool((misc >> 5) & 0x01)
-        source_frequency = SourceFrequency((misc >> 6) & 0x03)
+        try:
+            source_frequency = SourceFrequency((misc >> 6) & 0x03)
+        except:
+            f.seek(original_offset)
+            return None
         misc = MiscFlags(noise_shaping, stereo_mode, unwise, source_frequency)
         mp3_gain = read_u8(f)
         preset = read_u16(f)

@@ -64,6 +64,7 @@ class XingHeader:
         magic = f.read(4)
 
         if magic not in (b"Xing", b"Info"):
+            f.seek(-4,1)
             return None
 
         if magic == b"Info":
