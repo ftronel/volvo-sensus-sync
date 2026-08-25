@@ -238,9 +238,9 @@ def samples_per_frame(version: MPEGVersion, layer: MPEGLayer) -> int:
             raise ValueError(f"Invalid MPEG version/layer combination: {version}/{layer}")
 
 def frame_length(version: MPEGVersion, layer: MPEGLayer, bitrate: MPEGBitRate,
-                 sample_rate: MPEGSampleRate) -> int:
+                 sample_rate: MPEGSampleRate, padding: bool) -> int:
     samples = samples_per_frame(version, layer)
-    length = int(samples/sample_rate.hz(version)*bitrate.kbs(version, layer)*1000/8)
+    length = int(samples/sample_rate.hz(version)*bitrate.kbs(version, layer)*1000/8)+int(padding)
     if layer == MPEGLayer.LI:
         length*=4
     return length
@@ -335,7 +335,7 @@ class MPEGHeader:
         xing = XingHeader.parse(f)
         end = f.tell()
         length = end-frame_offset
-        expected_length = frame_length(version, layer, bitrate, samplerate)
+        expected_length = frame_length(version, layer, bitrate, samplerate, padding)
         if length > expected_length:
             # TODO: do something in case of inconsistency
             logger.error("MPEG header length (%d) is longer than expected (%d)",
