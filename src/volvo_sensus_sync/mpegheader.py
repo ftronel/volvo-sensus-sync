@@ -251,7 +251,7 @@ class MPEGHeader:
     offset: int
     version: MPEGVersion
     layer: MPEGLayer
-    crc: bool
+    no_crc: bool
     bitrate: MPEGBitRate
     samplerate: MPEGSampleRate
     padding: bool
@@ -268,7 +268,7 @@ class MPEGHeader:
     def to_bytes(self) -> bytes:
         buf = BytesIO()
         b0 = 0xFF
-        b1 = (0b111<<5) | (self.version<<3) | (self.layer<<1) | self.crc
+        b1 = (0b111<<5) | (self.version<<3) | (self.layer<<1) | self.no_crc
         b2 = (self.bitrate<<4) | (self.samplerate<<2) | (self.padding<<1) + self.private
         b3 = (self.channel_mode<<6) | (self.mode_extension<<4) | (self.copyright<<3) | \
             (self.original<<2) | self.emphasis
@@ -312,7 +312,7 @@ class MPEGHeader:
 
         version = MPEGVersion((header >> 19) & 0b11)
         layer = MPEGLayer((header >> 17) & 0b11)
-        crc = bool((header >> 16) & 0b1)
+        no_crc = bool((header >> 16) & 0b1)
         bitrate = MPEGBitRate((header >> 12) & 0b1111)
         samplerate = MPEGSampleRate((header >> 10) & 0b11)
         padding = bool((header >> 9) & 0b1)
@@ -353,7 +353,7 @@ class MPEGHeader:
             offset = frame_offset,
             version = version,
             layer = layer,
-            crc = crc,
+            no_crc = no_crc,
             bitrate = bitrate,
             samplerate = samplerate,
             padding = padding,
