@@ -52,16 +52,6 @@ class ConversionProcess:
     finished: bool = False
     successful: bool = False
 
-def check_sensus_compatibility(audio, path) -> bool:
-    if not isinstance(audio, MP3):
-        return False
-
-    header = MPEGHeader.parse(path)
-    if header is not None:
-        return header.is_sensus_compatible()
-
-    return False
-
 @typechecked
 def convert(input_file: Path, output_file: Path,
             settings: EncodingSettings) -> ConversionProcess | None:
@@ -86,8 +76,24 @@ def convert(input_file: Path, output_file: Path,
         return None
 
     audio = File(input_file)
-    compat = check_sensus_compatibility(audio, input_file)
-    if compat:
+
+    # In case of MP3 we check if it is already compatible with Volvo Sensus
+    if isinstance(audio, MP3):
+        header = MPEGHeader.parse(input_file)
+        if header is None:
+            logger.error("Impossible to parse MPEG header of %s", input_file)
+            return None
+        compat = header.is_sensus_compatible()
+        if not compat:
+            header.fix_sensus_compatibility(output_file, encoding: EncodingSettings)
+        header = MPEGHeader.parse(output_file)
+        if header is None:
+            logger.error("Impossible to parse MPEG header of %s", output_file)
+            return None
+        compat = header.is_sensus_compatible()
+        if not compat:
+            logger.error("Impossible to fix MP3 compatibility of %s", input_file)
+            return None
         try:
             output_file.hardlink_to(input_file)
         except OSError:
