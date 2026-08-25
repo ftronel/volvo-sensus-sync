@@ -23,8 +23,8 @@ from .config import EncodingMode, EncodingSettings
 from .library import determine_conversions, get_audio_list, get_metadata
 from .partition import create_partitions, find_cuts, mp3_total_size, stats_by_artist
 from .scheduler import scheduler
-from .step import step
-from .system import STOP, check_binaries, sigint_handler
+from .step import runtime_state
+from .system import check_binaries, sigint_handler
 from .utils import sort_artist_path
 
 
@@ -35,7 +35,7 @@ def main() -> int:
     Parses arguments, validates input/output directories, orchestrates the
     conversion pipeline and finally creates the requested partitions.
     """
-    global step
+    global runtime_state
 
     logger = logging.getLogger(__name__)
 
@@ -75,7 +75,7 @@ def main() -> int:
     group.add_argument("--vbr", type=int,
                        help="Quality for VBR encoding [0-9].")
 
-    step+=1
+    runtime_state.step+=1
     args = parser.parse_args()
     logger.info('Arguments: %s',args)
 
@@ -85,6 +85,8 @@ def main() -> int:
 
     if args.nb_threads is None:
         args.nb_threads = os.cpu_count() or 1
+    else:
+        args.nb_threads = int(args.nb_threads)
 
     if args.cbr is not None:
         settings = EncodingSettings(EncodingMode.CBR, args.cbr)
@@ -122,32 +124,32 @@ def main() -> int:
     export_all = export / "all"
     export_all.mkdir(exist_ok=True)
 
-    step+=1
+    runtime_state.step+=1
     files = get_audio_list(music)
     logger.info('Found %d files', len(files))
 
-    step+=1
+    runtime_state.step+=1
     logger.info('Retrieving audio metadata')
     audios = get_metadata(files)
 
-    step+=1
+    runtime_state.step+=1
     logger.info('Sorting files by artist')
     audios = dict(sorted(audios.items()))
 
-    step+=1
+    runtime_state.step+=1
     logger.info("Creating export directory structure ...")
     conversions = determine_conversions(audios, export_all)
 
-    step+=1
+    runtime_state.step+=1
     logger.info("There are %d files to convert.", len(conversions))
 
     scheduler(conversions, args.nb_threads, settings)
 
-    if STOP > 0:
+    if runtime_state.interruptions > 0:
         logger.info("Exiting as requested.")
         return -1
 
-    step+=1
+    runtime_state.step+=1
     logger.info("Determining MP3 total size")
     size = mp3_total_size(export_all)
     logger.info("MP3 total size: %d", size)
@@ -163,14 +165,14 @@ def main() -> int:
         ideal_size = ceil(size/args.number_dirs)
     logger.info("We are seeking %d directories of %d bytes each.", args.number_dirs, ideal_size)
 
-    step+=1
+    runtime_state.step+=1
     stats = stats_by_artist(export_all)
 
     logger.info("Sorting by alphabetic order")
-    step+=1
+    runtime_state.step+=1
     stats = dict(sorted(stats.items(), key=lambda item: sort_artist_path(item[0])))
 
-    step+=1
+    runtime_state.step+=1
     logger.info("Computing cuts by artist")
     parts = find_cuts(stats, ideal_size, args.number_dirs)
     if parts is None:

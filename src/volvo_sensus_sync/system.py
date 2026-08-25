@@ -14,11 +14,9 @@ from shutil import which
 
 from typeguard import typechecked
 
-from .step import Step, step
+from .step import Step, runtime_state
 
 logger = logging.getLogger(__name__)
-
-STOP = 0
 
 def sigint_handler(signum, frame):
     """Handle SIGINT (Ctrl‑C).
@@ -27,11 +25,12 @@ def sigint_handler(signum, frame):
     launching new jobs and allows the currently running subprocesses to finish
     gracefully.  During any earlier step the program exits immediately.
     """
-    global STOP
+    global runtime_state
 
-    if step != Step.CONVERSION:
+    logger.warning("Received CTRL-C during step: %s", runtime_state.step)
+    if runtime_state.step != Step.CONVERSION:
         sys.exit(-1)
-    STOP += 1
+    runtime_state.interruptions += 1
     logger.warning("Please wait during graceful shutdown")
 
 @typechecked

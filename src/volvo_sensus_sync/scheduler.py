@@ -17,10 +17,25 @@ from typeguard import typechecked
 
 from .config import EncodingSettings
 from .convert import convert
-from .system import STOP
+from .step import runtime_state
 from .track import Track
 
 logger = logging.getLogger(__name__)
+
+def finish_conversion(track: Track, settings: EncodingSettings) -> None:
+     # fix MPEG header
+    header = track.get_mpeg_header()
+    if not header.is_sensus_compatible():
+        header.fix_sensus_compatibility(track.dest, settings)
+    else:
+        logger.warning("%s is already compatible !!", track)
+    header = track.get_mpeg_header()
+    fixed = header.is_sensus_compatible()
+    if not fixed:
+        logger.error("Impossible to fix Volvo compatibility of: %s", track.dest)
+    # Write metadata
+    # track.write_tags()
+
 
 @typechecked
 def scheduler(conversions: list[Track], nb_threads: int, settings: EncodingSettings) -> None:
@@ -48,6 +63,8 @@ def scheduler(conversions: list[Track], nb_threads: int, settings: EncodingSetti
             conv = convert(track.source, track.dest, settings)
             # If we draw an MP3 file we keep on trying to fill processor with conversion
             if conv is None:
+                # We still may need to fix MP3
+                finish_conversion(track, settings)
                 progress.update(1)
                 progress.set_postfix(active=len(active_tracks), errors=len(errors))
                 continue
@@ -57,8 +74,7 @@ def scheduler(conversions: list[Track], nb_threads: int, settings: EncodingSetti
             progress.set_postfix(active=len(active_tracks), errors=len(errors))
 
         # Keep on launching conversions until completion or interrupt is requested.
-        while ((len(conversions) > 0)  and (len(active_tracks) > 0) and (STOP == 0)\
-            or ((len(active_tracks) > 0) and (STOP > 0))) :
+        while(len(active_tracks) > 0):
             # Wait for completion of a subprocess
             logger.debug("Waiting for conversion completion")
             try:
@@ -81,31 +97,21 @@ def scheduler(conversions: list[Track], nb_threads: int, settings: EncodingSetti
             logger.debug("Track status: %s", track)
             if process.finished:
                 if process.successful:
+                    finish_conversion(track, settings)
                     active_tracks.remove(track)
-                    progress.update(1)
-                    # fix MPEG header
-                    header = track.get_mpeg_header()
-                    if not header.is_sensus_compatible():
-                        logger.info("Fixing %s", track)
-                        header.fix_sensus_compatibility(track.dest, settings)
-                    else:
-                        logger.warning("%s is already compatible !!", track)
-                    header = track.get_mpeg_header()
-                    fixed = header.is_sensus_compatible()
-                    if not fixed:
-                        logger.error("Impossible to fix Volvo compatibility of: %s", track.dest)
-                    # Write metadata
-                    # track.write_tags()
                     logger.debug('Conversion of %s was successful', track)
                 tracks_by_pid.pop(pid)
+            progress.update(1)
             progress.set_postfix(active=len(active_tracks), errors=len(errors))
 
             # If we can admit a new conversion, find a candidate
-            while len(active_tracks) < nb_threads and len(conversions)>0 and STOP == 0:
+            while len(active_tracks) < nb_threads and len(conversions)>0 \
+                and runtime_state.interruptions == 0:
                 track = conversions.pop()
                 conv = convert(track.source, track.dest, settings)
                 # If we draw an MP3 file we keep on trying to fill processor with conversion
                 if conv is None:
+                    finish_conversion(track, settings)
                     progress.update(1)
                     progress.set_postfix(active=len(active_tracks), errors=len(errors))
                     continue

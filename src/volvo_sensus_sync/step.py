@@ -2,8 +2,8 @@
 #
 # Copyright (C) 2026 Frédéric Tronel
 
+from dataclasses import dataclass
 from enum import IntEnum
-
 
 class Step(IntEnum):
     """Enumeration describing the current processing step.
@@ -23,4 +23,9 @@ class Step(IntEnum):
     SORTING_STATS = 9
     SEARCH_CUTS = 10
 
-step = Step.INIT
+@dataclass
+class RuntimeState:
+    step: Step = Step.INIT
+    interruptions: int = 0
+
+runtime_state = RuntimeState()
