@@ -75,38 +75,41 @@ class XingHeader:
         are read according to the flags word, then a LAME extension is parsed if
         present.
         """
-        magic = f.read(4)
+        original_offset = f.tell()
 
-        if magic not in (b"Xing", b"Info"):
-            f.seek(-4,1)
+        try:
+            magic = f.read(4)
+
+            if magic not in (b"Xing", b"Info"):
+                f.seek(original_offset)
+                return None
+
+            encoding = EncodingMode.CBR if magic == b"Info" else EncodingMode.VARIABLE
+
+            flags = read_u32(f)
+
+            nb_frames = read_u32(f) if flags & 0x0001 else None
+            audio_length = read_u32(f) if flags & 0x0002 else None
+
+            toc = None
+            if flags & 0x0004:
+                toc = f.read(100)
+                if len(toc) != 100:
+                    raise EOFError("Incomplete Xing TOC")
+
+            quality = read_u32(f) if flags & 0x0008 else None
+
+            lame = LameTag.parse(f)
+
+            return cls(
+                encoding=encoding,
+                frames=nb_frames,
+                audio_length=audio_length,
+                toc=toc,
+                quality=quality,
+                lame=lame,
+            )
+
+        except EOFError:
+            f.seek(original_offset)
             return None
-
-        if magic == b"Info":
-            encoding = EncodingMode.CBR
-        else:
-            encoding = EncodingMode.VARIABLE
-
-        flags = read_u32(f)
-
-        nb_frames = None
-        audio_length = None
-        toc = None
-        quality = None
-        if flags & 0x0001:      # Frames
-            nb_frames = read_u32(f)
-        if flags & 0x0002:      # Bytes
-            audio_length = read_u32(f)
-        if flags & 0x0004:      # TOC
-            toc = f.read(100)
-        if flags & 0x0008:      # Quality
-            quality = read_u32(f)
-
-        lame = LameTag.parse(f)
-
-        return XingHeader(
-            encoding = encoding,
-            frames = nb_frames,
-            audio_length = audio_length,
-            toc = toc,
-            quality = quality,
-            lame = lame)
