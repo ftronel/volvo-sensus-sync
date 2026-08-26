@@ -44,25 +44,24 @@ def convert(input_file: Path, output_file: Path,
             settings: EncodingSettings) -> ConversionProcess | None:
     """Create the destination MP3 for one source audio file.
 
-    Existing MP3 files are handled without FFmpeg. If the MP3 is already
-    compatible with Volvo Sensus, it is hard-linked to the destination when
-    possible, or copied otherwise. If it is not compatible, it is copied first
-    and the copy is patched in minimal mode so the source file is never modified.
+    Existing MP3 files are handled without FFmpeg. Compatible MP3 files are
+    hard-linked when possible, otherwise copied. Incompatible MP3 files are
+    copied first, then the copy is patched in minimal mode so the source file is
+    never modified.
 
-    Non-MP3 sources are transcoded asynchronously with FFmpeg and the running
-    process is returned.
+    Non-MP3 sources are transcoded asynchronously with FFmpeg.
 
     Args:
         input_file: Source audio file.
         output_file: Destination MP3 path. It must not already exist.
-        settings: Encoding mode and value passed to FFmpeg for transcoding.
+        settings: Encoding settings used for FFmpeg transcoding.
 
     Returns:
         ``None`` when no FFmpeg process was started, otherwise a
         :class:`ConversionProcess` wrapping the running FFmpeg process.
 
     Raises:
-        InvalidMP3File: If an existing MP3 cannot be parsed.
+        InvalidMP3File: If an existing MP3 cannot be parsed or patched.
     """
     logger.debug("Converting %s into %s with parameters: %s", input_file, output_file, settings)
 
@@ -80,7 +79,7 @@ def convert(input_file: Path, output_file: Path,
             raise InvalidMP3File()
         compat = header.is_sensus_compatible()
         if not compat:
-            # We modifiy original version.
+            # We modifiy the copied version.
             shutil.copy2(input_file, output_file)
             header.fix_sensus_compatibility(output_file, True, None)
             # Verify compatibility

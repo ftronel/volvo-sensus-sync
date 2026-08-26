@@ -55,8 +55,7 @@ def finish_conversion(track: Track, settings: EncodingSettings) -> None:
     track.write_tags()
 
 def find_next_track(tracks_by_pid: dict[int, Track] , active_tracks: set[Track],
-                    errors: set[Track], warnings: set[Track], conversions: list[Track],
-                    settings: EncodingSettings) -> bool:
+                    conversions: list[Track], settings: EncodingSettings) -> bool:
     """Start or process the next pending track.
 
     If the source is an existing MP3 and no FFmpeg process is needed, the track
@@ -77,11 +76,11 @@ def find_next_track(tracks_by_pid: dict[int, Track] , active_tracks: set[Track],
     if conv is None:
         finish_conversion(track, settings)
         return True
-    else:
-        track.process = conv
-        tracks_by_pid[conv.ffmpeg.pid] = track
-        active_tracks.add(track)
-        return False
+
+    track.process = conv
+    tracks_by_pid[conv.ffmpeg.pid] = track
+    active_tracks.add(track)
+    return False
 
 def check_ffmpeg_warnings(track: Track) -> bool:
     """Return whether FFmpeg produced stderr output for a successful track.
@@ -125,8 +124,7 @@ def scheduler(conversions: list[Track], nb_threads: int, settings: EncodingSetti
         # Fill up the buffer with nb_threads conversions
         logger.debug("Filling CPUs with %d conversions", nb_threads)
         while (len(active_tracks) < nb_threads) and (len(conversions) >0):
-            if find_next_track(tracks_by_pid, active_tracks, errors, warnings, conversions,
-                               settings):
+            if find_next_track(tracks_by_pid, active_tracks, conversions, settings):
                 progress.update(1)
         progress.set_postfix(active=len(active_tracks), warnings=len(warnings), errors=len(errors))
 
@@ -171,8 +169,7 @@ def scheduler(conversions: list[Track], nb_threads: int, settings: EncodingSetti
             # If we can admit a new conversion, find a candidate
             while len(active_tracks) < nb_threads and len(conversions)>0 \
                 and runtime_state.interruptions == 0:
-                if find_next_track(tracks_by_pid, active_tracks, errors, warnings, conversions,
-                                   settings):
+                if find_next_track(tracks_by_pid, active_tracks, conversions, settings):
                     progress.update(1)
                 progress.set_postfix(active=len(active_tracks), warnings=len(warnings),
                                      errors=len(errors))

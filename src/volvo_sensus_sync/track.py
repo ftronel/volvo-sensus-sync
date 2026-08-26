@@ -13,26 +13,17 @@ from .mpegheader import MPEGHeader
 
 @dataclass(slots=True)
 class Track:
-    """
-    Representation of a single audio track that will be converted to MP3.
+    """Audio track scheduled for export.
 
-    The class stores both source metadata (artist, album, title, etc.) and the
-    destination path where the final MP3 will be written.  It also holds a
-    reference to a :class:`ConversionProcess` when the track is currently being
-    converted.
+    A ``Track`` groups the source file, the metadata that should be written to
+    the exported MP3, and the destination path used during synchronization.
 
-    Equality and hashing are based solely on the *source* path so that a
-    ``Track`` can be used as a dictionary key or stored in a ``set`` without
-    needing to compare all metadata fields.
+    During FFmpeg transcoding, ``process`` references the running conversion.
+    Existing MP3 files may not need a subprocess: they can be linked, copied or
+    minimally patched before finalization.
 
-    Methods
-    -------
-    __hash__():
-        Return a hash value derived from the ``source`` attribute.
-    write_tags():
-        Write ID3v2.3 tags (title, album, artist, track number, disc number) to
-        the destination MP3 file.  Missing tags are created if the file does not
-        already contain an ID3 header.
+    Equality is not overridden, but hashing is based on ``source`` so tracks can
+    be stored in sets used by the scheduler.
     """
     source: Path
     artist: str
@@ -46,44 +37,38 @@ class Track:
     process: ConversionProcess | None = None
 
     def __hash__(self):
-        """
-        Compute a hash based on the source file path.
+        """Return a hash based on the source path.
 
-        Using the source path as the unique identifier ensures that two ``Track``
-        objects pointing to the same original file are considered equal in hash‑
-        based collections.
-
-        Returns
-        -------
-        int
-            The hash of ``self.source``.
+        The scheduler stores ``Track`` objects in sets. Using the source path keeps
+        the hash stable even if runtime fields such as ``dest`` or ``process`` are
+        updated during conversion.
         """
         return hash(self.source)
 
     def get_mpeg_header(self):
+        """Parse the first MPEG frame from the destination MP3.
+
+        Returns:
+            Parsed MPEG header, or ``None`` if no valid MPEG frame can be found.
+
+        Raises:
+            ValueError: If the destination path has not been assigned yet.
+        """
+        if self.dest is None:
+            raise ValueError("Cannot parse MPEG header before destination is set")
+
         return MPEGHeader.parse(self.dest)
 
     def write_tags(self):
-        """
-        Write or update ID3v2.3 tags on the destination MP3 file.
+        """Write ID3v2.3 metadata to the destination MP3.
 
-        The method creates an ``ID3`` object (adding a new header if one does not
-        already exist) and populates the following frames:
+        The method creates an ID3 tag if needed, then writes title, album, artist,
+        track number and disc number. Version 2.3 is used for compatibility with
+        older players such as Volvo Sensus.
 
-        * ``TIT2`` – Title
-        * ``TALB`` – Album
-        * ``TPE1`` – Artist (lead performer)
-        * ``TRCK`` – Track number/total (e.g. ``"5/12"``)
-        * ``TPOS`` – Disc number/total (e.g. ``"1/2"``)
-
-        The tags are saved using version 2.3 of the ID3 specification to retain
-        broad compatibility with older players.
-
-        Raises
-        ------
-        mutagen.id3.ID3Error
-            Propagated if Mutagen fails to write the tags (e.g., permission
-            issues or file corruption).
+        Raises:
+            ValueError: If the destination path has not been assigned yet.
+            mutagen.id3.ID3Error: If Mutagen cannot read or write the tag.
         """
         try:
             tags = ID3(self.dest)
