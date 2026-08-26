@@ -35,7 +35,11 @@ def finish_conversion(track: Track, settings: EncodingSettings) -> None:
         header.fix_sensus_compatibility(track.dest, False, settings)
     else:
         logger.warning("%s is already compatible !!", track)
+    logger.debug("Check compatibility fix.")
     header = track.get_mpeg_header()
+    if header is None:
+        logger.error("MPEG header was corrupted during Volvo Sensus fix in %s", track.dest)
+        return
     fixed = header.is_sensus_compatible()
     if not fixed:
         logger.error("Impossible to fix Volvo compatibility of: %s", track.dest)

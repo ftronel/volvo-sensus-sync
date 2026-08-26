@@ -229,7 +229,7 @@ class InvalidMP3File(Exception):
 def samples_per_frame(version: MPEGVersion, layer: MPEGLayer) -> int:
     match version, layer:
         case _, MPEGLayer.LI:
-            return 384
+            return 96
         case _, MPEGLayer.LII:
             return 1152
         case MPEGVersion.MPEG1, MPEGLayer.LIII:
@@ -283,6 +283,9 @@ def validate_mpeg_header(f: BinaryIO, offset:int) -> bool:
         return False
 
     if samplerate == MPEGSampleRate.RESERVED:
+        return False
+
+    if emphasis == MPEGEmphasis.RESERVED:
         return False
 
     return True
