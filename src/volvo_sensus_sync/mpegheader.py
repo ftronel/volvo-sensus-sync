@@ -239,6 +239,7 @@ def samples_per_frame(version: MPEGVersion, layer: MPEGLayer) -> int:
         case _:
             raise ValueError(f"Invalid MPEG version/layer combination: {version}/{layer}")
 
+
 def frame_length(version: MPEGVersion, layer: MPEGLayer, bitrate: MPEGBitRate,
                  sample_rate: MPEGSampleRate, padding: bool) -> int:
     samples = samples_per_frame(version, layer)
@@ -248,10 +249,12 @@ def frame_length(version: MPEGVersion, layer: MPEGLayer, bitrate: MPEGBitRate,
     return length
 
 def validate_mpeg_header(f: BinaryIO, offset:int) -> bool:
+    current = f.tell()
+
     f.seek(offset)
     header = read_u32(f)
     # Go back to start of potential header
-    f.seek(offset)
+    f.seek(current)
 
     # Recheck synchro
     if (header >> 21) != 0x7FF:
@@ -267,7 +270,7 @@ def validate_mpeg_header(f: BinaryIO, offset:int) -> bool:
         channel_mode = MPEGChannelMode((header >> 6) & 0b11)
         mode_extension = MPEGModeExtension((header >> 4) & 0b11)
         emphasis = MPEGEmphasis(header & 0b11)
-    except:
+    except ValueError:
         return False
 
     if version == MPEGVersion.RESERVED:
@@ -346,15 +349,26 @@ class MPEGHeader:
     padding_length: int
     audio: bytes
 
+
+    def mpeg_header_bytes(self) -> bytes:
+        b0 = 0xFF
+        b1 = (0b111 << 5) | (self.version << 3) | (self.layer << 1) | int(self.no_crc)
+        b2 = ( (self.bitrate << 4) | (self.samplerate << 2) | (int(self.padding) << 1) |\
+            int(self.private))
+        b3 = ((self.channel_mode << 6) | (self.mode_extension << 4) | (int(self.copyright) << 3) |\
+            (int(self.original) << 2) | self.emphasis)
+
+        return bytes([b0, b1, b2, b3])
+
+    def patch_mpeg_header_only(self, path: Path) -> None:
+        with path.open("r+b") as f:
+            f.seek(self.offset)
+            f.write(self.mpeg_header_bytes())
+
     def to_bytes(self) -> bytes:
         buf = BytesIO()
-        b0 = 0xFF
-        b1 = (0b111<<5) | (self.version<<3) | (self.layer<<1) | self.no_crc
-        b2 = (self.bitrate<<4) | (self.samplerate<<2) | (self.padding<<1) + self.private
-        b3 = (self.channel_mode<<6) | (self.mode_extension<<4) | (self.copyright<<3) | \
-            (self.original<<2) | self.emphasis
-        header = b3|(b2<<8)|(b1<<16)|(b0<<24)
-        buf.write(header.to_bytes(4, byteorder="big"))
+        header = self.mpeg_header_bytes()
+        buf.write(header)
         if not self.no_crc:
             buf.write(self.crc)
         buf.write(self.sideinfo)
@@ -428,14 +442,13 @@ class MPEGHeader:
         actual_end = f.tell()
         actual_length = actual_end-frame_offset
         padding_length = 0
-        if length > expected_length:
+        if actual_length > expected_length:
             # TODO: do something in case of inconsistency
             logger.error("MPEG header length (%d) is longer than expected (%d)",
-                            length, expected_length)
+                            actual_length, expected_length)
             return None
         else:
-            padding_length = expected_length - length
-        length = expected_length
+            padding_length = expected_length - actual_length
         audio = bytes()
         remaining = f.read(padding_length)
         if xing is None:
@@ -448,7 +461,7 @@ class MPEGHeader:
                 logger.warning("Padding of %s is not zeroed. Frame offset: %d", f, frame_offset)
 
         return MPEGHeader(
-            length = length,
+            length = expected_length,
             offset = frame_offset,
             version = version,
             layer = layer,
@@ -475,6 +488,11 @@ class MPEGHeader:
                                  encoding: EncodingSettings) -> None:
         self.channel_mode = MPEGChannelMode.JOINT
         self.original = True
+
+        if minimal or self.xing is None or self.xing.lame is None:
+            self.patch_mpeg_header_only(path)
+            return
+
         if not minimal and encoding is not None and self.xing is not None and\
             self.xing.lame is not None:
             if self.xing.lame.vbr_method == VbrMethod.UNKNOWN:
@@ -493,9 +511,11 @@ class MPEGHeader:
             data_length = self.length - self.padding_length - 2
             self.xing.lame.tag_crc = CRC16.compute(data[:data_length])
         data = self.to_bytes()
+
         if len(data) != self.length:
-            logger.error('Original header (%d) and rewritten header (%d) have not the same length !'
-                         , self.length, len(data))
+            raise ValueError(
+                f"Rewritten frame has invalid length: original={self.length}, new={len(data)}"
+            )
         with open(path.resolve(), 'r+b') as f:
             f.seek(self.offset)
             length = f.write(data)

@@ -28,6 +28,9 @@ logger = logging.getLogger(__name__)
 def finish_conversion(track: Track, settings: EncodingSettings) -> None:
      # fix MPEG header
     header = track.get_mpeg_header()
+    if header is None:
+        logger.error("Cannot find MPEG header in %s", track.dest)
+        return
     if not header.is_sensus_compatible():
         header.fix_sensus_compatibility(track.dest, False, settings)
     else:
