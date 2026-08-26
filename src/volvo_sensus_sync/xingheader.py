@@ -12,8 +12,8 @@ from io import BytesIO
 from typing import BinaryIO, Self
 
 from .config import EncodingMode
-from .lametag import LameTag
 from .io_utils import read_u32
+from .lametag import LameTag
 
 logger = logging.getLogger(__name__)
 

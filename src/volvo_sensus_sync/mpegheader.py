@@ -18,8 +18,8 @@ import hexdump
 from .config import EncodingMode, EncodingSettings
 from .crc16 import CRC16
 from .id3 import skip_id3v2_tags
-from .lametag import SourceFrequency, StereoMode, VbrMethod
 from .io_utils import read_u32
+from .lametag import SourceFrequency, StereoMode, VbrMethod
 from .xingheader import XingHeader
 
 logger = logging.getLogger(__name__)
@@ -585,7 +585,7 @@ class MPEGHeader:
             side_info_size = 9 if channel_mode == MPEGChannelMode.MONO else 17
 
         # There is a CRC
-        crc = bytes()
+        crc = b""
         if not no_crc:
             crc = f.read(2)
 
@@ -601,7 +601,7 @@ class MPEGHeader:
                             actual_length, expected_length)
             return None
         padding_length = expected_length - actual_length
-        audio = bytes()
+        audio = b""
         remaining = f.read(padding_length)
         if xing is None:
             logger.warning("Found first frame with audio for %s.", f)

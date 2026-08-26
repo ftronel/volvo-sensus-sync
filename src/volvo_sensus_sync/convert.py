@@ -20,7 +20,7 @@ from mutagen.mp3 import MP3
 from typeguard import typechecked
 
 from .config import EncodingMode, EncodingSettings
-from .mpegheader import MPEGHeader, InvalidMP3File
+from .mpegheader import InvalidMP3File, MPEGHeader
 
 logger = logging.getLogger(__name__)
 
