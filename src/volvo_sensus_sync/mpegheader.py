@@ -364,11 +364,11 @@ class MPEGHeader:
             buf.write(xing)
             # In case of presence of a Xing header the rest of the frame is padding.
             padding = bytes(self.padding_length)
-            buf.write(padding_length)
+            buf.write(padding)
         else:
             # When there is no Xing info the rest of frame is dedicated to audio data.
-            if len(audio) > 0:
-                buf.write(audio)
+            if len(self.audio) > 0:
+                buf.write(self.audio)
         return buf.getvalue()
 
     @classmethod
@@ -426,7 +426,7 @@ class MPEGHeader:
         xing = XingHeader.parse(f)
         expected_length = frame_length(version, layer, bitrate, samplerate, padding)
         actual_end = f.tell()
-        actual_length = actuel_end-frame_offset
+        actual_length = actual_end-frame_offset
         padding_length = 0
         if length > expected_length:
             # TODO: do something in case of inconsistency
