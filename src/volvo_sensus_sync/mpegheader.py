@@ -19,28 +19,45 @@ from .config import EncodingMode, EncodingSettings
 from .crc16 import CRC16
 from .id3 import skip_id3v2_tags
 from .lametag import SourceFrequency, StereoMode, VbrMethod
-from .mp3 import read_u32
+from .io_utils import read_u32
 from .xingheader import XingHeader
 
 logger = logging.getLogger(__name__)
 
 
 class MPEGVersion(IntEnum):
-    """ MPEG Version """
+    """Raw MPEG audio version bits stored in the frame header.
+
+    The numeric values intentionally match the two-bit MPEG version field:
+    ``00`` for MPEG-2.5, ``10`` for MPEG-2 and ``11`` for MPEG-1.
+    ``01`` is reserved by the format and must be rejected when validating
+    a frame header.
+    """
     MPEG2_5 = 0
     RESERVED = 1
     MPEG2 = 2
     MPEG1 = 3
 
 class MPEGLayer(IntEnum):
-    """ MPEG Layer """
+    """Raw MPEG audio layer bits stored in the frame header.
+
+    MP3 files are MPEG Audio Layer III, represented here by ``LIII``.
+    The other layers are parsed so that the frame length and header
+    validation logic can reject or handle non-MP3 MPEG audio frames
+    consistently.
+    """
     RESERVED = 0
     LIII = 1
     LII = 2
     LI = 3
 
 class MPEGBitRate(IntEnum):
-    """ MPEG Layer """
+    """Bitrate index from the MPEG frame header.
+
+    The enum value is the four-bit index stored in the header, not the
+    bitrate itself. Use :meth:`kbs` with the MPEG version and layer to
+    resolve the index to a bitrate in kbit/s.
+    """
     FREE = 0
     I_0001 = 1
     I_0010 = 2
@@ -59,6 +76,22 @@ class MPEGBitRate(IntEnum):
     BAD = 15
 
     def kbs(self, version: MPEGVersion, layer: MPEGLayer) -> int:
+        """Resolve this MPEG bitrate index to a bitrate in kbit/s.
+
+        The bitrate table depends on both MPEG version and audio layer.
+        ``FREE`` and ``BAD`` are rejected because this project needs a
+        deterministic frame length to parse and patch the first frame safely.
+
+        Args:
+            version: MPEG version parsed from the frame header.
+            layer: MPEG audio layer parsed from the frame header.
+
+        Returns:
+            Bitrate in kbit/s.
+
+        Raises:
+            ValueError: If the bitrate, version or layer combination is invalid.
+        """
         if self == MPEGBitRate.FREE:
             raise ValueError("Free bitrate is not supported")
         if self == MPEGBitRate.BAD:
@@ -182,6 +215,20 @@ class MPEGSampleRate(IntEnum):
     RESERVED = 3
 
     def hz(self, version: MPEGVersion) -> int:
+        """Resolve this sample-rate index to a frequency in hertz.
+
+        The same two-bit sample-rate index maps to different frequencies
+        depending on the MPEG version.
+
+        Args:
+            version: MPEG version parsed from the frame header.
+
+        Returns:
+            Sample rate in hertz.
+
+        Raises:
+            ValueError: If the version or sample-rate index is reserved.
+        """
         table = {
             MPEGVersion.MPEG1: {
                 MPEGSampleRate.RATE_0: 44100,
@@ -229,7 +276,7 @@ class InvalidMP3File(Exception):
 def samples_per_frame(version: MPEGVersion, layer: MPEGLayer) -> int:
     match version, layer:
         case _, MPEGLayer.LI:
-            return 96
+            return 384
         case _, MPEGLayer.LII:
             return 1152
         case MPEGVersion.MPEG1, MPEGLayer.LIII:
@@ -240,12 +287,39 @@ def samples_per_frame(version: MPEGVersion, layer: MPEGLayer) -> int:
             raise ValueError(f"Invalid MPEG version/layer combination: {version}/{layer}")
 
 def slot_size(layer: MPEGLayer) -> int:
+    """Return the MPEG audio slot size in bytes for a layer.
+
+    Layer I frames are expressed in four-byte slots. Layer II and Layer III
+    frames are expressed in one-byte slots. The padding bit always adds one
+    slot, not necessarily one byte.
+    """
     if layer == MPEGLayer.LI:
-            return 4
+        return 4
     return 1
 
 def frame_length(version: MPEGVersion, layer: MPEGLayer, bitrate: MPEGBitRate,
                  sample_rate: MPEGSampleRate, padding: bool) -> int:
+    """Compute the full MPEG frame length in bytes.
+
+    The returned length includes the four-byte MPEG header, optional MPEG
+    protection CRC, side information and frame payload. For Layer I, the
+    padding bit adds one four-byte slot; for Layer II and Layer III it adds
+    one byte.
+
+    Args:
+        version: MPEG version from the frame header.
+        layer: MPEG audio layer from the frame header.
+        bitrate: Bitrate index from the frame header.
+        sample_rate: Sample-rate index from the frame header.
+        padding: Whether the frame padding bit is set.
+
+    Returns:
+        Full frame length in bytes.
+
+    Raises:
+        ValueError: If the version/layer/bitrate/sample-rate combination
+            is invalid or unsupported.
+    """
     samples = samples_per_frame(version, layer)
     slot = slot_size(layer)
 
@@ -255,6 +329,13 @@ def frame_length(version: MPEGVersion, layer: MPEGLayer, bitrate: MPEGBitRate,
     return length_in_slots * slot
 
 def validate_mpeg_header(f: BinaryIO, offset:int) -> bool:
+    """Return whether a plausible MPEG frame header exists at *offset*.
+
+    This function validates only the four-byte MPEG header. It rejects
+    reserved version/layer/sample-rate values, free or invalid bitrates and
+    reserved emphasis. The stream position is restored before returning so
+    callers can use it safely while scanning through junk or ID3 padding.
+    """
     current = f.tell()
 
     f.seek(offset)
@@ -298,11 +379,20 @@ def validate_mpeg_header(f: BinaryIO, offset:int) -> bool:
 
 def search_for_mpeg_synchro(f: BinaryIO, start_offset: int,
                             max_scan: int = 1024 * 1024) -> int | None:
-    """
-    Search for a valid MPEG frame after the declared end of ID3v2.
+    """Search forward for the first plausible MPEG frame synchronization.
 
-    This tolerates extra zero padding or junk between ID3v2 and
-    the first MPEG frame.
+    Scanning starts after the declared end of the leading ID3v2 tag. This is
+    deliberately tolerant because real-world MP3 files can contain extra zero
+    padding or junk between ID3v2 and the first MPEG frame.
+
+    Args:
+        f: Binary stream positioned anywhere.
+        start_offset: Offset where scanning should begin.
+        max_scan: Maximum number of bytes to inspect.
+
+    Returns:
+        Offset of the first plausible MPEG frame header, or ``None`` if no
+        valid candidate is found within the scan window.
     """
     f.seek(start_offset)
 
@@ -328,8 +418,7 @@ def search_for_mpeg_synchro(f: BinaryIO, start_offset: int,
         if b0 == 0xFF and (b1 & 0xE0) == 0xE0:
             if validate_mpeg_header(f, candidate):
                 return candidate
-            else:
-                logger.debug("Skipping candidate at offset: %x", candidate)
+            logger.debug("Skipping candidate at offset: %x", candidate)
 
         previous = current
         pos += 1
@@ -338,6 +427,19 @@ def search_for_mpeg_synchro(f: BinaryIO, start_offset: int,
 
 @dataclass
 class MPEGHeader:
+    """Parsed representation of the first MPEG audio frame.
+
+    The object stores the MPEG frame header fields, optional protection CRC,
+    side information, and either a Xing/Info metadata block or the audio main
+    data found in the remainder of the frame.
+
+    Volvo Sensus compatibility is determined from the first MPEG frame header:
+    the player accepts files when the first frame is marked as Joint Stereo and
+    Original. When a Xing/LAME block is present, the whole first frame can be
+    rewritten to keep metadata consistent. When no Xing/Info block is present,
+    only the four MPEG header bytes should be patched, because the rest of the
+    frame contains audio data.
+    """
     length: int
     offset: int
     version: MPEGVersion
@@ -360,21 +462,43 @@ class MPEGHeader:
 
 
     def mpeg_header_bytes(self) -> bytes:
+        """Serialize only the four-byte MPEG frame header.
+
+        This is the safe representation to write when applying the minimal Volvo
+        Sensus compatibility patch. It does not include CRC, side information,
+        Xing/LAME metadata, padding or audio data.
+        """
         b0 = 0xFF
         b1 = (0b111 << 5) | (self.version << 3) | (self.layer << 1) | int(self.no_crc)
-        b2 = ( (self.bitrate << 4) | (self.samplerate << 2) | (int(self.padding) << 1) |\
-            int(self.private))
-        b3 = ((self.channel_mode << 6) | (self.mode_extension << 4) | (int(self.copyright) << 3) |\
-            (int(self.original) << 2) | self.emphasis)
+        b2 = (self.bitrate << 4) | (self.samplerate << 2) | (int(self.padding) << 1) |\
+            int(self.private)
+        b3 = (self.channel_mode << 6) | (self.mode_extension << 4) | (int(self.copyright) << 3) |\
+            (int(self.original) << 2) | self.emphasis
 
         return bytes([b0, b1, b2, b3])
 
     def patch_mpeg_header_only(self, path: Path) -> None:
+        """Patch only the first frame's MPEG header in *path*.
+
+        This is used for existing MP3 files and for files without a valid Xing/LAME
+        block. It preserves the rest of the first frame unchanged, which avoids
+        corrupting audio main data.
+        """
         with path.open("r+b") as f:
             f.seek(self.offset)
             f.write(self.mpeg_header_bytes())
 
     def to_bytes(self) -> bytes:
+        """Serialize the parsed first MPEG frame.
+
+        If a Xing/Info block is present, the serialized frame contains the MPEG
+        header, optional protection CRC, side information, Xing/LAME metadata and
+        zero padding. If no Xing/Info block is present, the stored audio bytes are
+        written back unchanged.
+
+        Prefer :meth:`patch_mpeg_header_only` when only Volvo Sensus compatibility
+        bits need to be changed.
+        """
         buf = BytesIO()
         header = self.mpeg_header_bytes()
         buf.write(header)
@@ -396,6 +520,12 @@ class MPEGHeader:
 
     @classmethod
     def parse(cls, source: Path | BinaryIO) -> Self | None:
+        """Parse the first MPEG frame from a path or binary stream.
+
+        Leading ID3v2 tags are skipped, then the stream is scanned for a plausible
+        MPEG frame synchronization. The parser returns ``None`` if no suitable frame
+        can be found.
+        """
         if isinstance(source, Path):
             with source.open("rb") as f:
                 return cls.from_stream(f)
@@ -404,6 +534,13 @@ class MPEGHeader:
 
     @classmethod
     def from_stream(cls, f: BinaryIO) -> Self | None:
+        """Parse the first MPEG frame from an open binary stream.
+
+        The parser handles leading ID3v2 tags, junk between ID3 and MPEG data,
+        optional MPEG protection CRC, side information, and optional Xing/Info plus
+        LAME metadata. If the first frame has no Xing/Info block, the remaining
+        bytes are treated as audio data and preserved.
+        """
         # Search for ID3v2 tags
         id3_offset = skip_id3v2_tags(f)
         logger.debug("Skipping ID3 tags at offset %x", id3_offset)
@@ -456,8 +593,7 @@ class MPEGHeader:
             logger.error("MPEG header length (%d) is longer than expected (%d)",
                             actual_length, expected_length)
             return None
-        else:
-            padding_length = expected_length - actual_length
+        padding_length = expected_length - actual_length
         audio = bytes()
         remaining = f.read(padding_length)
         if xing is None:
@@ -491,10 +627,29 @@ class MPEGHeader:
             padding_length = padding_length)
 
     def is_sensus_compatible(self) -> bool:
+        """Return whether the first MPEG frame matches Volvo Sensus expectations.
+
+        Current testing shows that Volvo Sensus requires the first MPEG frame to be
+        marked as Joint Stereo and Original.
+        """
         return self.channel_mode == MPEGChannelMode.JOINT and self.original
 
     def fix_sensus_compatibility(self, path: Path, minimal: bool,
                                  encoding: EncodingSettings) -> None:
+        """Patch an MP3 file so its first frame is accepted by Volvo Sensus.
+
+        The method always sets the first MPEG frame to Joint Stereo and Original.
+        In minimal mode, or when Xing/LAME metadata is missing, only the four-byte
+        MPEG header is written. When a full Xing/LAME block is available, selected
+        LAME fields and the LAME tag CRC are updated before rewriting the full
+        first frame.
+
+        Args:
+            path: MP3 file to patch in place.
+            minimal: If true, patch only the MPEG header.
+            encoding: Encoding settings used for converted files. May be ``None``
+                for existing MP3 files patched in minimal mode.
+        """
         self.channel_mode = MPEGChannelMode.JOINT
         self.original = True
 

@@ -13,7 +13,7 @@ from typing import BinaryIO, Self
 
 from .config import EncodingMode
 from .lametag import LameTag
-from .mp3 import read_u32
+from .io_utils import read_u32
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +29,13 @@ class XingHeader:
     lame: LameTag | None
 
     def to_bytes(self) -> bytes:
+        """Serialize this Xing/Info header and optional LAME extension.
+
+        The output starts with ``Info`` for CBR files and ``Xing`` otherwise,
+        followed by the flags field and only the optional fields enabled by those
+        flags. If a LAME tag is attached, it is appended immediately after the
+        Xing/Info fields.
+        """
         buf = BytesIO()
         if self.encoding == EncodingMode.CBR:
             buf.write(b'Info')
@@ -61,6 +68,13 @@ class XingHeader:
 
     @classmethod
     def parse(cls, f: BinaryIO) -> Self | None:
+        """Parse a Xing/Info header at the current stream position.
+
+        Returns ``None`` and restores the stream position by four bytes when the
+        expected magic is absent. When a Xing/Info block is found, optional fields
+        are read according to the flags word, then a LAME extension is parsed if
+        present.
+        """
         magic = f.read(4)
 
         if magic not in (b"Xing", b"Info"):

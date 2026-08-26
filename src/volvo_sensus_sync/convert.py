@@ -26,26 +26,13 @@ logger = logging.getLogger(__name__)
 
 @dataclass(slots=True)
 class ConversionProcess:
-    """
-    Container that tracks the life‑cycle of the external processes used to
-    convert a single audio file.
+    """State associated with one running FFmpeg conversion.
 
-    This implementation launch a single process:
-
-    * **ffmpeg**: performs the decoding / re‑encoding of the source audio
-      to a MP3 compatible with Volvo Sensus.
-
-    Attributes
-    ----------
-    ffmpeg: subprocess.Popen
-        The ``ffmpeg`` process handling the decoding step.  ``None`` is not
-        allowed: a ``ConversionProcess`` is always instantiated with a valid
-        process object.
-    finished: bool, default ``False``
-        ``True`` when ffmpeg subprocess has finished.
-    successful: bool, default ``False``
-        ``True`` when ffmpeg subprocess have finished *and* was
-        successful.
+    Attributes:
+        ffmpeg: Running FFmpeg subprocess.
+        stderr_path: Path where FFmpeg stderr is captured.
+        finished: Whether the subprocess has completed.
+        successful: Whether the subprocess exited with status code 0.
     """
     ffmpeg: subprocess.Popen
     stderr_path: Path
@@ -55,19 +42,27 @@ class ConversionProcess:
 @typechecked
 def convert(input_file: Path, output_file: Path,
             settings: EncodingSettings) -> ConversionProcess | None:
-    """Convert *input_file* to MP3 using ``ffmpeg`` at the requested *quality*.
+    """Create the destination MP3 for one source audio file.
 
-    If the source file is already an MP3 a hard‑link (or a copy if hard‑links are
-    not supported) is created instead of invoking ``ffmpeg``.
+    Existing MP3 files are handled without FFmpeg. If the MP3 is already
+    compatible with Volvo Sensus, it is hard-linked to the destination when
+    possible, or copied otherwise. If it is not compatible, it is copied first
+    and the copy is patched in minimal mode so the source file is never modified.
+
+    Non-MP3 sources are transcoded asynchronously with FFmpeg and the running
+    process is returned.
 
     Args:
-        input_file: Path to the original audio file.
-        output_file: Desired MP3 destination (must not already exist).
-        bitrate: MP3 bitrate.
+        input_file: Source audio file.
+        output_file: Destination MP3 path. It must not already exist.
+        settings: Encoding mode and value passed to FFmpeg for transcoding.
 
     Returns:
-        ``None`` if no conversion was necessary, otherwise a :class:`subprocess.Popen`
-        object representing the running ``ffmpeg`` process.
+        ``None`` when no FFmpeg process was started, otherwise a
+        :class:`ConversionProcess` wrapping the running FFmpeg process.
+
+    Raises:
+        InvalidMP3File: If an existing MP3 cannot be parsed.
     """
     logger.debug("Converting %s into %s with parameters: %s", input_file, output_file, settings)
 

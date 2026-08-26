@@ -26,7 +26,15 @@ logger = logging.getLogger(__name__)
 
 @typechecked
 def finish_conversion(track: Track, settings: EncodingSettings) -> None:
-     # fix MPEG header
+    """Finalize one converted or copied track.
+
+    The function verifies the destination MP3, applies the Volvo Sensus MPEG
+    header patch when needed, checks the result, then writes ID3 metadata.
+
+    Args:
+        track: Track whose destination file has been produced.
+        settings: Encoding settings used for FFmpeg conversions.
+    """
     header = track.get_mpeg_header()
     if header is None:
         logger.error("Cannot find MPEG header in %s", track.dest)
@@ -49,6 +57,16 @@ def finish_conversion(track: Track, settings: EncodingSettings) -> None:
 def find_next_track(tracks_by_pid: dict[int, Track] , active_tracks: set[Track],
                     errors: set[Track], warnings: set[Track], conversions: list[Track],
                     settings: EncodingSettings) -> bool:
+    """Start or process the next pending track.
+
+    If the source is an existing MP3 and no FFmpeg process is needed, the track
+    is finalized immediately and the function returns ``True`` so the progress
+    bar can be advanced. If FFmpeg is started, the process is registered in
+    ``tracks_by_pid`` and ``active_tracks`` and the function returns ``False``.
+
+    Returns:
+        ``True`` when the track completed synchronously, otherwise ``False``.
+    """
     track = conversions.pop()
     try:
         conv = convert(track.source, track.dest, settings)
@@ -66,6 +84,11 @@ def find_next_track(tracks_by_pid: dict[int, Track] , active_tracks: set[Track],
         return False
 
 def check_ffmpeg_warnings(track: Track) -> bool:
+    """Return whether FFmpeg produced stderr output for a successful track.
+
+    Empty log files are removed. Non-empty log files are kept so the caller can
+    report the track as completed with warnings.
+    """
     stderr_path = track.process.stderr_path
 
     if not stderr_path.exists():

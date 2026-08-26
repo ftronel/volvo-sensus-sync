@@ -13,13 +13,14 @@ from enum import IntEnum
 from io import BytesIO
 from typing import BinaryIO, Self
 
-from .mp3 import read_u8, read_u16, read_u32
+from .io_utils import read_u8, read_u16, read_u32
 
 logger = logging.getLogger(__name__)
 
 SIGNATURES = ['LAME', 'Lavf', 'Lavc', 'GOGO']
 
 class VbrMethod(IntEnum):
+    """LAME VBR method stored in the low nibble of the revision/method byte."""
     UNKNOWN = 0
     CBR = 1
     ABR = 2
@@ -28,6 +29,12 @@ class VbrMethod(IntEnum):
 
 @dataclass
 class EncodingFlags:
+    """Decoded LAME encoding flags and ATH type.
+
+    These values are packed into one byte in the LAME tag. The high bits store
+    encoder flags such as nspsytune, safe joint stereo and nogap markers; the
+    low nibble stores the ATH type.
+    """
     nspsytune: bool
     safe_joint: bool
     nogap_previous: bool
@@ -35,6 +42,11 @@ class EncodingFlags:
     ath_type: int
 
 class SourceFrequency(IntEnum):
+    """Source frequency category stored in the LAME misc byte.
+
+    The LAME tag stores a category, not an exact sample rate. Use
+    :meth:`from_hz` to map an MPEG sample rate to the closest LAME category.
+    """
     KHZ_32_OR_LESS = 0
     KHZ_44_1 = 1
     KHZ_48 = 2
@@ -42,7 +54,8 @@ class SourceFrequency(IntEnum):
 
 
     @classmethod
-    def from_hz(cls, hz: int) -> "SourceFrequency":
+    def from_hz(cls, hz: int) -> Self:
+        """Map a sample rate in hertz to the LAME source-frequency category."""
         if hz <= 32000:
             return cls.KHZ_32_OR_LESS
         if hz == 44100:
@@ -59,6 +72,7 @@ class SourceFrequency(IntEnum):
             case _: return 48000
 
 class StereoMode(IntEnum):
+    """Stereo mode category stored in the LAME misc byte."""
     MONO = 0
     STEREO = 1
     DUAL = 2
@@ -68,6 +82,11 @@ class StereoMode(IntEnum):
 
 @dataclass
 class MiscFlags:
+    """Decoded LAME misc byte.
+
+    The byte contains noise shaping, stereo mode, the unwise-settings flag and
+    the source-frequency category.
+    """
     noise_shaping: int
     stereo_mode: StereoMode
     unwise: bool
@@ -75,6 +94,13 @@ class MiscFlags:
 
 @dataclass
 class LameTag:
+    """Parsed 36-byte LAME extension following a Xing/Info header.
+
+    The LAME tag stores encoder information, replay gain bytes, delay/padding,
+    misc flags, music length and two CRC fields. Volvo Sensus appears not to
+    depend directly on these fields, but they are preserved and updated when
+    rewriting the first Xing/LAME frame.
+    """
     encoder: str
     revision: int
     vbr_method: VbrMethod
@@ -92,6 +118,7 @@ class LameTag:
     tag_crc: int
 
     def to_bytes(self) -> bytes:
+        """Serialize this LAME tag to its 36-byte binary representation."""
         buf = BytesIO()
         buf.write(self.encoder.encode("ascii"))
         b = (self.revision<<4) | self.vbr_method
@@ -129,6 +156,13 @@ class LameTag:
 
     @classmethod
     def parse(cls, f: BinaryIO) -> Self | None:
+        """Parse a LAME-like tag at the current stream position.
+
+        If no known encoder signature is found, or if a required bitfield contains
+        an unsupported value, the stream position is restored and ``None`` is
+        returned. This allows callers to distinguish a valid LAME extension from
+        arbitrary bytes following a Xing/Info header.
+        """
         original_offset = f.tell()
         encoder = f.read(9).decode("ascii", errors="replace")
         signature_found = False
