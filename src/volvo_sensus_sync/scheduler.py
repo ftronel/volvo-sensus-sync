@@ -129,6 +129,9 @@ def scheduler(conversions: list[Track], nb_threads: int, settings: EncodingSetti
                         warnings.add(track)
                     finish_conversion(track, settings)
                     logger.debug('Conversion of %s was successful', track)
+                # Closing and flushing error log
+                # track.stderr_path.flush()
+                # track.stderr_path.close()
                 active_tracks.remove(track)
                 tracks_by_pid.pop(pid)
             progress.update(1)

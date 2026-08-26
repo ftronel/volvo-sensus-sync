@@ -250,6 +250,8 @@ def frame_length(version: MPEGVersion, layer: MPEGLayer, bitrate: MPEGBitRate,
 def validate_mpeg_header(f: BinaryIO, offset:int) -> bool:
     f.seek(offset)
     header = read_u32(f)
+    # Go back to start of potential header
+    f.seek(offset)
 
     # Recheck synchro
     if (header >> 21) != 0x7FF:
@@ -342,6 +344,7 @@ class MPEGHeader:
     sideinfo: bytes
     xing: XingHeader | None
     padding_length: int
+    audio: bytes
 
     def to_bytes(self) -> bytes:
         buf = BytesIO()
@@ -359,8 +362,13 @@ class MPEGHeader:
             xing = self.xing.to_bytes()
             logger.debug("Xing: %d\n", len(xing))
             buf.write(xing)
-        padding = bytes(self.padding_length)
-        buf.write(padding)
+            # In case of presence of a Xing header the rest of the frame is padding.
+            padding = bytes(self.padding_length)
+            buf.write(padding_length)
+        else:
+            # When there is no Xing info the rest of frame is dedicated to audio data.
+            if len(audio) > 0:
+                buf.write(audio)
         return buf.getvalue()
 
     @classmethod
@@ -416,20 +424,28 @@ class MPEGHeader:
 
         side_info = f.read(side_info_size)
         xing = XingHeader.parse(f)
-        end = f.tell()
-        length = end-frame_offset
         expected_length = frame_length(version, layer, bitrate, samplerate, padding)
+        actual_end = f.tell()
+        actual_length = actuel_end-frame_offset
+        padding_length = 0
         if length > expected_length:
             # TODO: do something in case of inconsistency
             logger.error("MPEG header length (%d) is longer than expected (%d)",
-                         length, expected_length)
-        padding_length = expected_length - length
-        padding_bytes = f.read(padding_length)
-        if not all(b == 0x00 for b in padding_bytes):
-            # TODO: do something when padding is not zeroed !
-            logger.debug(hexdump.dump(padding_bytes))
-            logger.warning("Padding of %s is not zeroed. Frame offset: %d", f, frame_offset)
+                            length, expected_length)
+            return None
+        else:
+            padding_length = expected_length - length
         length = expected_length
+        audio = bytes()
+        remaining = f.read(padding_length)
+        if xing is None:
+            logger.warning("Found first frame with audio for %s.", f)
+            audio = remaining
+        else:
+            if not all(b == 0x00 for b in remaining):
+                # TODO: do something when padding is not zeroed !
+                logger.debug(hexdump.dump(remaining))
+                logger.warning("Padding of %s is not zeroed. Frame offset: %d", f, frame_offset)
 
         return MPEGHeader(
             length = length,
@@ -449,6 +465,7 @@ class MPEGHeader:
             emphasis = emphasis,
             sideinfo = side_info,
             xing = xing,
+            audio = audio,
             padding_length = padding_length)
 
     def is_sensus_compatible(self) -> bool:
