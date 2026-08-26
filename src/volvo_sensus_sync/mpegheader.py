@@ -209,10 +209,11 @@ class MPEGBitRate(IntEnum):
         return table[version][layer][self]
 
 class MPEGSampleRate(IntEnum):
-    RATE_0 = 0
-    RATE_1 = 1
-    RATE_2 = 2
-    RESERVED = 3
+    """Raw MPEG sample rate stored in the frame header."""
+    RATE_0 = 0b00
+    RATE_1 = 0b01
+    RATE_2 = 0b10
+    RESERVED = 0b11
 
     def hz(self, version: MPEGVersion) -> int:
         """Resolve this sample-rate index to a frequency in hertz.
@@ -253,22 +254,25 @@ class MPEGSampleRate(IntEnum):
         return table[version][self]
 
 class MPEGChannelMode(IntEnum):
-    STEREO = 0
-    JOINT = 1
-    DUAL = 2
-    MONO = 3
+    """Raw MPEG channel mode bits stored in the frame header."""
+    STEREO = 0b00
+    JOINT = 0b01
+    DUAL = 0b10
+    MONO = 0b11
 
 class MPEGModeExtension(IntEnum):
+    """Raw MPEG mode extension bits stored in the frame header."""
     NONE = 0b00
     INTENSITY = 0b01
     MS = 0b10
     INTENSITY_MS = 0b11
 
 class MPEGEmphasis(IntEnum):
-    NONE = 0
-    _50_15 = 1
-    RESERVED = 2
-    CCITT = 3
+    """Raw MPEG emphasis bits stored in the frame header."""
+    NONE = 0b00
+    _50_15 = 0b01
+    RESERVED = 0b10
+    CCITT = 0b11
 
 class InvalidMP3File(Exception):
     pass
@@ -337,45 +341,48 @@ def validate_mpeg_header(f: BinaryIO, offset:int) -> bool:
     callers can use it safely while scanning through junk or ID3 padding.
     """
     current = f.tell()
-
     f.seek(offset)
-    header = read_u32(f)
-    # Go back to start of potential header
-    f.seek(current)
-
-    # Recheck synchro
-    if (header >> 21) != 0x7FF:
-        logger.warning("No synchro at offset: %x", offset)
-        return False
-
-    # If any of these fields cannot be parsed we reject the candidate
     try:
-        version = MPEGVersion((header >> 19) & 0b11)
-        layer = MPEGLayer((header >> 17) & 0b11)
-        bitrate = MPEGBitRate((header >> 12) & 0b1111)
-        samplerate = MPEGSampleRate((header >> 10) & 0b11)
-        MPEGChannelMode((header >> 6) & 0b11)
-        MPEGModeExtension((header >> 4) & 0b11)
-        emphasis = MPEGEmphasis(header & 0b11)
-    except ValueError:
-        return False
+        try:
+            header = read_u32(f)
+        except EOFError:
+            return False
 
-    if version == MPEGVersion.RESERVED:
-        return False
+        # Recheck synchro
+        if (header >> 21) != 0x7FF:
+            logger.warning("No synchro at offset: %x", offset)
+            return False
 
-    if layer == MPEGLayer.RESERVED:
-        return False
+        # If any of these fields cannot be parsed we reject the candidate
+        try:
+            version = MPEGVersion((header >> 19) & 0b11)
+            layer = MPEGLayer((header >> 17) & 0b11)
+            bitrate = MPEGBitRate((header >> 12) & 0b1111)
+            samplerate = MPEGSampleRate((header >> 10) & 0b11)
+            MPEGChannelMode((header >> 6) & 0b11)
+            MPEGModeExtension((header >> 4) & 0b11)
+            emphasis = MPEGEmphasis(header & 0b11)
+        except ValueError:
+            return False
 
-    if bitrate in (MPEGBitRate.FREE, MPEGBitRate.BAD):
-        return False
+        if version == MPEGVersion.RESERVED:
+            return False
 
-    if samplerate == MPEGSampleRate.RESERVED:
-        return False
+        if layer == MPEGLayer.RESERVED:
+            return False
 
-    if emphasis == MPEGEmphasis.RESERVED:
-        return False
+        if bitrate in (MPEGBitRate.FREE, MPEGBitRate.BAD):
+            return False
 
-    return True
+        if samplerate == MPEGSampleRate.RESERVED:
+            return False
+
+        if emphasis == MPEGEmphasis.RESERVED:
+            return False
+
+        return True
+    finally:
+        f.seek(current)
 
 def search_for_mpeg_synchro(f: BinaryIO, start_offset: int,
                             max_scan: int = 1024 * 1024) -> int | None:

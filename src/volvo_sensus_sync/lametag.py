@@ -177,7 +177,7 @@ class LameTag:
         revision = b>>4
         try:
             vbr_method = VbrMethod(b&0x0F)
-        except:
+        except ValueError:
             f.seek(original_offset)
             return None
         lowpass_hz = read_u8(f)*100
@@ -200,13 +200,13 @@ class LameTag:
         noise_shaping = misc & 0x03
         try:
             stereo_mode = StereoMode((misc>>2)&0x07)
-        except:
+        except ValueError:
             f.seek(original_offset)
             return None
         unwise = bool((misc >> 5) & 0x01)
         try:
             source_frequency = SourceFrequency((misc >> 6) & 0x03)
-        except:
+        except ValueError:
             f.seek(original_offset)
             return None
         misc = MiscFlags(noise_shaping, stereo_mode, unwise, source_frequency)

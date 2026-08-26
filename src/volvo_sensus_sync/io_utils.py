@@ -2,12 +2,10 @@
 #
 # Copyright (C) 2026 Frédéric Tronel
 
-"""
-MP3 parsing and compatibility checks.
+"""Binary I/O helpers used by MP3 parsers.
 
-This module provides utilities for parsing MPEG and Xing headers and
-determining whether an existing MP3 file is compatible with the Volvo
-Sensus firmware.
+The functions in this module read exact-size big-endian integers from binary
+streams and raise EOFError when the requested number of bytes cannot be read.
 """
 
 import logging
@@ -16,6 +14,11 @@ from typing import BinaryIO
 logger = logging.getLogger(__name__)
 
 def read_exact(f: BinaryIO, size: int) -> bytes:
+    """Read exactly *size* bytes from a binary stream.
+
+    Raises:
+        EOFError: If the stream ends before enough bytes are available.
+    """
     data = f.read(size)
     if len(data) != size:
         raise EOFError(f"Expected {size} bytes, got {len(data)}")
