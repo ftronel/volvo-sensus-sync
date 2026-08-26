@@ -239,14 +239,20 @@ def samples_per_frame(version: MPEGVersion, layer: MPEGLayer) -> int:
         case _:
             raise ValueError(f"Invalid MPEG version/layer combination: {version}/{layer}")
 
+def slot_size(layer: MPEGLayer) -> int:
+    if layer == MPEGLayer.LI:
+            return 4
+    return 1
 
 def frame_length(version: MPEGVersion, layer: MPEGLayer, bitrate: MPEGBitRate,
                  sample_rate: MPEGSampleRate, padding: bool) -> int:
     samples = samples_per_frame(version, layer)
-    length = int(samples/sample_rate.hz(version)*bitrate.kbs(version, layer)*1000/8)+int(padding)
-    if layer == MPEGLayer.LI:
-        length*=4
-    return length
+    slot = slot_size(layer)
+
+    length_in_slots = int(samples/sample_rate.hz(version)*bitrate.kbs(version, layer)*1000/8/slot)\
+                     + int(padding)
+
+    return length_in_slots * slot
 
 def validate_mpeg_header(f: BinaryIO, offset:int) -> bool:
     current = f.tell()
@@ -267,8 +273,8 @@ def validate_mpeg_header(f: BinaryIO, offset:int) -> bool:
         layer = MPEGLayer((header >> 17) & 0b11)
         bitrate = MPEGBitRate((header >> 12) & 0b1111)
         samplerate = MPEGSampleRate((header >> 10) & 0b11)
-        channel_mode = MPEGChannelMode((header >> 6) & 0b11)
-        mode_extension = MPEGModeExtension((header >> 4) & 0b11)
+        MPEGChannelMode((header >> 6) & 0b11)
+        MPEGModeExtension((header >> 4) & 0b11)
         emphasis = MPEGEmphasis(header & 0b11)
     except ValueError:
         return False
