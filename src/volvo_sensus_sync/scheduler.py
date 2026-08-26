@@ -114,7 +114,7 @@ def scheduler(conversions: list[Track], nb_threads: int, settings: EncodingSetti
         nb_threads: Maximum number of simultaneous ``ffmpeg`` processes.
         bitrate: Desired MP3 bitrate (passed to :func:`convert`).
     """
-    tracks_by_pid = {}
+    tracks_by_pid: dict[int, Track] = {}
     active_tracks: set[Track] = set()
     errors: set[Track] = set()
     warnings: set[Track] = set()

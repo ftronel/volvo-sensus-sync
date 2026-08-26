@@ -58,7 +58,7 @@ def get_metadata(files: list[Path]) -> dict[str,dict[str,dict[int,list[Track]]]]
         where *track_dict* contains the keys ``inode``, ``title``, ``disc``,
         ``nb_discs`` and ``track``.
     """
-    res = {}
+    res: dict[str,dict[str,dict[int,list[Track]]]] = {}
     for inode in tqdm(files):
         try:
             audio = File(inode, easy=True)

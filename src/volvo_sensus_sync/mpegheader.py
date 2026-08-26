@@ -642,7 +642,7 @@ class MPEGHeader:
         return self.channel_mode == MPEGChannelMode.JOINT and self.original
 
     def fix_sensus_compatibility(self, path: Path, minimal: bool,
-                                 encoding: EncodingSettings) -> None:
+                                 encoding: EncodingSettings|None) -> None:
         """Patch an MP3 file so its first frame is accepted by Volvo Sensus.
 
         The method always sets the first MPEG frame to Joint Stereo and Original.

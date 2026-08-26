@@ -209,7 +209,7 @@ class LameTag:
         except ValueError:
             f.seek(original_offset)
             return None
-        misc = MiscFlags(noise_shaping, stereo_mode, unwise, source_frequency)
+        misc_flags = MiscFlags(noise_shaping, stereo_mode, unwise, source_frequency)
         mp3_gain = read_u8(f)
         preset = read_u16(f)
         music_length = read_u32(f)
@@ -226,7 +226,7 @@ class LameTag:
             bitrate = bitrate,
             encoder_delay = delay,
             encoder_padding =  padding,
-            misc = misc,
+            misc = misc_flags,
             mp3_gain = mp3_gain,
             preset = preset,
             music_length = music_length,
