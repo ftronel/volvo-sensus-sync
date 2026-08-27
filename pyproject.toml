@@ -1,6 +1,6 @@
 [project]
 name = "volvo-sensus-sync"
-version = "1.0.0"
+version = "1.1.0"
 description = "Convert and synchronize a music library for Volvo Sensus"
 authors = [
     {name = "Frédéric Tronel"}
